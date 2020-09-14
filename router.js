@@ -1,10 +1,9 @@
 var express = require('express');
-var bodyParser = require('body-parser')
 
 var router = express.Router()
 var connection = require('./connection');
 
-router.use(function (req, res, next) { // TODO: run this on startup
+router.use(function (req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*'); // TODO:write more secure headers
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
