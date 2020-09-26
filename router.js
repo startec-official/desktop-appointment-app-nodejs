@@ -1,8 +1,8 @@
 var express = require('express');
-var port = require('./connectDevice');
+var port = require('./connections/serial-connection');
 
 var router = express.Router()
-var connection = require('./connection');
+var connection = require('./connections/mysql-connection');
 
 // TODO: separate routes according to type
 
@@ -75,9 +75,9 @@ router.post( '/testWrite' , (req,res) => {
     const inputString = `${req.body.message}\n`;
     port.write( inputString , function(err) {
         if (err) {
-          return console.log('Error on write: ', err.message)
+          return console.log('Error on write: ', err.message);
         }
-        console.log('message written!')
+        console.log('message written!');
       })
 });
 
