@@ -9,7 +9,13 @@ const Readline = require('@serialport/parser-readline')
 var app = express();
 
 const parser = deviceConn.pipe(new Readline({ delimiter: '\r\n' }))
-parser.on('data', console.log) // TODO: put switch case function here
+parser.on('data', ( data ) => {
+  console.log( data );
+  switch( data ) {
+    case 'INIT ERROR':
+      console.log( 'yup its working' );
+  }
+}) // TODO: put switch case function here
 
 dotenv.config();
 
