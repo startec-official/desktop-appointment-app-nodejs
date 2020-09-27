@@ -1,5 +1,6 @@
-const ox = require('./utils/queue-manager');
-const applog = require('./utils/debug-log');
+const ox = require('../utils/queue-manager');
+const workFn = require('./work-function');
+const applog = require('../utils/debug-log');
 
 module.exports = function( data ) {
     const key = data.split( ';' );
@@ -13,16 +14,7 @@ module.exports = function( data ) {
         applog.log( "the device started sucessfully!" );
         // queue manager code
         ox.process({
-          work_fn : async function (job_body) { // TODO: transfer function to another file
-            var promise = new Promise(function(resolve, reject) {
-              applog.log( job_body );
-              resolve();
-            });             
-            // Do something with your job here
-            return promise;
-            // The job will be considered finished when the promise resolves,
-            // or failed if the promise rejects.
-          },
+          work_fn : workFn.work_fn,
           concurrency : 1
         })
       }
@@ -37,6 +29,7 @@ module.exports = function( data ) {
     case 'KEYWORD': // handle registration text received
       ox.addJob( { 
         body : {
+          type : 'REGISTER',
           number : key[1],
           date : key[2],
           message : key[3]

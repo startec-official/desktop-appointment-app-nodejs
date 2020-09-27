@@ -51,23 +51,27 @@ if ( schedData.length > 0 ) { // TODO: separate delete query
     if (err) throw err;
     console.log("Connected to mySQL Server! The query finished with the following response:");
     console.log( rows );
+    res.sendStatus(200);
     })
+}
+else {
+    res.sendStatus(200);
 }
 
 });
 
-router.get( '/remove/:userId' , (req,res,next) => { // TODO: secure queries with hashed auth or headers
+router.delete( '/remove/:userId' , (req,res,next) => { // TODO: secure queries with hashed auth or headers
     const id = parseInt( req.params.userId , 10 );
     connection.query( 'DELETE FROM clients WHERE client_id = ?' , id , (err , rows , fields) => {
         if( err ) throw err;
+        res.sendStatus(200);
     });
-    res.json( { message : "deletion success" } );
 });
 
 router.delete('/clear' , ( req , res , next ) => {
     connection.query( 'DELETE FROM schedule' , (err, res, fields) => {
         if( err ) throw err;    
-        console.log( res );
+        res.sendStatus(200);
     });
 });
 
@@ -78,6 +82,7 @@ router.post( '/testWrite' , (req,res) => {
           return console.log('Error on write: ', err.message);
         }
         console.log('message written!');
+        res.sendStatus(200);
       })
 });
 

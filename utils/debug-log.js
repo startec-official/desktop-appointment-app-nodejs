@@ -1,9 +1,9 @@
-const debugLog = {
-    debugOn : true,
-    log : function( data ) {
-        if( debugLog.debugOn )
-            console.log( data );
-    }
+var debugOn = true;
+
+var log = function( data ) {
+    if( debugOn )
+        console.log( data );
 }
 
-module.exports = debugLog;
+module.exports.debugOn = debugOn;
+module.exports.log = log;
