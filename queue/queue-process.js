@@ -19,7 +19,7 @@ module.exports = function( data ) {
         })
       }
       else { // handle init failure
-        applog.log( "device failed. Throw error" );
+        applog.log( "device failed. Throw error" ); // TODO: throw error
         initAttempts ++;
         if( initAttempts > 3 ) { // send message to system, abort boot
 
@@ -40,11 +40,11 @@ module.exports = function( data ) {
       if( key[1] == 'SUCCESS' ) { // handle send success
         applog.log( "message was successfully sent..." );
       }
-      else { // handle error
-        applog.log( "message was not sent. Throw error" );
+      else {
+        applog.log( "message was not sent. Throw error" ); // TODO: throw error
       }
       break;
     default:
-      applog.log('cannot understand input...');
+      applog.log('cannot understand input...'); // TODO: throw error
   }
 }

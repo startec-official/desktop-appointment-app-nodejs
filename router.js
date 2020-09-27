@@ -18,7 +18,7 @@ router.get('/display',(req,res)=> {
     connection.query('SELECT * FROM clients', function (err, rows, fields) { 
         if (err) throw err
         res.json(rows);
-    })  
+    });
 });
 
 router.get( '/display/schedules' , (req,res) => {
