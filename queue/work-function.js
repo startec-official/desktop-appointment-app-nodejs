@@ -1,20 +1,27 @@
 const applog = require('../utils/debug-log');
 const moment = require('moment');
-const { getAvailable } = require('./server-workers');
 const workers = require('./server-workers');
 
-var work_fn = async function (job_body) { // TODO: transfer function to another file
+var work_fn = async function (job_body) {
     var promise = new Promise(function(resolve, reject) {
         switch( job_body.type ) {
-            case 'REGISTER':
-                processRegistration( job_body );
+            case 'REQUEST':
+                processRegistration( job_body ).then((queryRes) => {
+                    resolve( queryRes );
+                }).catch( ( errors ) => {
+                    reject( errors );
+                }); // TODO: add unique ID generation feature, and table column
                 break;
             case 'SEND': // TODO: send function for success and failure
+                sendMessage( job_body ).then( (queryRes) => {
+                    resolve(queryRes);
+                }).catch((errors)=>{
+                    reject( errors );
+                });
                 break;
             default:
                 // TODO: throw error
         }
-        resolve();
     });
     // Do something with your job here
     return promise;
@@ -22,37 +29,55 @@ var work_fn = async function (job_body) { // TODO: transfer function to another 
     // or failed if the promise rejects.
 }
 
-var processRegistration = ( registration ) => {
-    var msgParse = registration.message.split('-'); // split string based on the defined delimiter
-    var stringDate = moment( msgParse[1] , 'MM/DD/YY' , true ).format("MMMM Do YYYY, dddd"); // TODO: add security check and accomodate single digit and four digit year
-    var sendDate = moment( registration.date );
-    var clientName = msgParse[0]; // get client name from message
-    var clientReason = msgParse.length > 2 ? msgParse[2] : ''; // get client reason from message (if any)
-    var contactNo = registration.number;
+var processRegistration = ( registrationBody ) => {
+    return new Promise( (topRes , topRej) => {
+        var regData , targetSched;
+        var errors = [];
+        // TODO: documentation
+        // var regData = { // body of verified message 
+        //     dateRecieved : dateRec,
+        //     contactNumber : contactNo,
+        //     dateFromMsg : dateFromMsg,
+        //     dateFromMsgFrmtd : dateFromMsgFrmtd,
+        //     clientName : clientName,
+        //     clientReason : clientReason
+        // }
 
-    workers.getAvailablePromise( stringDate , sendDate ).then( (targetSched) => { // TODO: add guard for repeated number and appointment date
-        applog.log( 'targetSched from getAvailable' );
-        // applog.log( targetSched );
-        return workers.writeToSchedulePromise(targetSched);
-    }).then( (targetSched ) => {
-        applog.log( 'targetSched from writeToSchedule' );
-        // applog.log( targetSched );
-        return workers.getOrderPromise( targetSched );
-    }).then(( orderSchedObj ) => {
-        applog.log( 'orderSchedObj form getOrder' );
-        // applog.log( orderSchedObj );
-        return workers.writeToClientsPromise( clientName , msgParse[1] , orderSchedObj.sched.sched_time , orderSchedObj.order.sched_taken , clientReason , contactNo ); // TODO: change msgParse[1] to secured input once check feature complete
-    }).then( ( queryRes ) => {
-        applog.log( 'queryRes from writeToClients' );
-        // applog.log( queryRes );
-    }).catch( (err) =>{
-        applog.log(err);   
-    }).catch((err)=>{
-        applog.log(err); // TODO: throw error
-    }).catch((err) => {
-        applog.log(err); // TODO: throw error
-    }).catch((err)=>{
-        applog.log(err);
+        workers.verifyInputPromise( registrationBody ).then( (resRegData) => { // TODO: secure table polling against cross-site scripting
+            regData = resRegData;
+            return workers.getAvailablePromise( regData.contactNumber , regData.dateFromMsgFrmtd );
+        }).then( ( resTargetSched ) => { // TODO: add guard for repeated number and appointment date
+            targetSched = resTargetSched;
+            return workers.writeToSchedulePromise(targetSched);
+        }).then( ( queryRes ) => {
+            applog.log( queryRes.message );
+            return workers.getOrderPromise( targetSched );
+        }).then(( order ) => {
+            return workers.writeToClientsPromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YY') , targetSched.sched_time , order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
+        }).then( ( queryRes ) => {
+            applog.log( queryRes.message );
+            topRes( queryRes );
+        }).catch( (err) => {
+            errors.push( err );
+            applog.log( errors );
+            topRej( errors );
+        });
+    });
+}
+
+var sendMessage = ( sendBody ) => {
+    return new Promise((topRes,topRej)=> {
+        var errors = [];
+        // TODO: If flag not resolved, reject the queue entry, replace
+
+        workers.sendMessage( sendBody ).then( (queryRes) => {
+            applog.log( queryRes.message );
+            topRes( queryRes );
+        }).catch( (err) => {
+            errors.push( err );
+            applog.log( errors );
+            topRej(errors);
+        });
     });
 }
 

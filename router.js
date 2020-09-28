@@ -1,14 +1,15 @@
 var express = require('express');
-var port = require('./connections/serial-connection');
+var ox = require('./utils/queue-manager');
 
 var router = express.Router()
 var connection = require('./connections/mysql-connection');
+var applog = require('./utils/debug-log');
 
 // TODO: separate routes according to type
 
 router.use(function (req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*'); // TODO:write more secure headers
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Allow-Credentials', true);
     next();
@@ -49,8 +50,8 @@ if ( schedData.length > 0 ) { // TODO: separate delete query
 `;
     connection.query(saveQuery, [schedData], function (err, rows, fields) {
     if (err) throw err;
-    console.log("Connected to mySQL Server! The query finished with the following response:");
-    console.log( rows );
+    applog.log("Connected to mySQL Server! The query finished with the following response:");
+    applog.log( rows );
     res.sendStatus(200);
     })
 }
@@ -70,20 +71,21 @@ router.delete( '/remove/:userId' , (req,res,next) => { // TODO: secure queries w
 
 router.delete('/clear' , ( req , res , next ) => {
     connection.query( 'DELETE FROM schedule' , (err, res, fields) => {
-        if( err ) throw err;    
+        if( err ) throw err;
         res.sendStatus(200);
     });
 });
 
 router.post( '/testWrite' , (req,res) => {
-    const inputString = `${req.body.message}\n`;
-    port.write( inputString , function(err) {
-        if (err) {
-          return console.log('Error on write: ', err.message);
+    const message = `${req.body.message}`;
+    const phoneNo = `${req.body.number}`;
+    ox.addJob({
+        body : {
+            type: 'SEND',
+            number : phoneNo,
+            message : message
         }
-        console.log('message written!');
-        res.sendStatus(200);
-      })
+    });
 });
 
 module.exports = router;

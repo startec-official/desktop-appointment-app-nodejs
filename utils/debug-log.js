@@ -1,7 +1,7 @@
 var debugOn = true;
 
 var log = function( data ) {
-    if( debugOn )
+    if( this.debugOn )
         console.log( data );
 }
 
