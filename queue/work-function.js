@@ -1,6 +1,7 @@
 const applog = require('../utils/debug-log');
-const moment = require('moment');
-const workers = require('./server-workers');
+const serverWorker = require('../workers/server-workers');
+const serialWorker = require('../workers/serial-workers');
+const ox = require('../utils/queue-manager');
 
 var work_fn = async function (job_body) {
     var promise = new Promise(function(resolve, reject) {
@@ -33,27 +34,28 @@ var processRegistration = ( registrationBody ) => {
     return new Promise( (topRes , topRej) => {
         var regData , targetSched;
         var errors = [];
-        // TODO: documentation
-        // var regData = { // body of verified message 
-        //     dateRecieved : dateRec,
-        //     contactNumber : contactNo,
-        //     dateFromMsg : dateFromMsg,
-        //     dateFromMsgFrmtd : dateFromMsgFrmtd,
-        //     clientName : clientName,
-        //     clientReason : clientReason
-        // }
 
-        workers.verifyInputPromise( registrationBody ).then( (resRegData) => { // TODO: secure table polling against cross-site scripting
+        serverWorker.verifyInputPromise( registrationBody ).then( (resRegData) => { // TODO: secure table polling against cross-site scripting
             regData = resRegData;
-            return workers.getAvailablePromise( regData.contactNumber , regData.dateFromMsgFrmtd );
+            return serverWorker.getAvailableSchedulesPromise( regData.contactNumber , regData.dateFromMsgFrmtd );
         }).then( ( resTargetSched ) => { // TODO: add guard for repeated number and appointment date
             targetSched = resTargetSched;
-            return workers.writeToSchedulePromise(targetSched);
+            return serverWorker.writeToSchedulePromise(targetSched);
         }).then( ( queryRes ) => {
             applog.log( queryRes.message );
-            return workers.getOrderPromise( targetSched );
+            return serverWorker.getClientOrderPromise( targetSched );
         }).then(( order ) => {
-            return workers.writeToClientsPromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YY') , targetSched.sched_time , order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
+            return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
+        }).then((queryRes) => {
+            ox.addJob({
+                body : {
+                    type : 'SEND',
+                    flag : 'S',
+                    number : regData.contactNumber,
+                    message : `${regData.dateFromMsg.format('MM/DD/YY')}, ${targetSched.sched_time}!`
+                }
+            });
+            return queryRes;
         }).then( ( queryRes ) => {
             applog.log( queryRes.message );
             topRes( queryRes );
@@ -70,7 +72,7 @@ var sendMessage = ( sendBody ) => {
         var errors = [];
         // TODO: If flag not resolved, reject the queue entry, replace
 
-        workers.sendMessage( sendBody ).then( (queryRes) => {
+        serialWorker.sendMessage( sendBody ).then( (queryRes) => {
             applog.log( queryRes.message );
             topRes( queryRes );
         }).catch( (err) => {

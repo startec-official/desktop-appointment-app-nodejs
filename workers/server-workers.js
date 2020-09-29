@@ -1,20 +1,21 @@
 const conn = require('../connections/mysql-connection');
 const moment = require('moment');
-const port = require('../connections/serial-connection');
 const ox = require('../utils/queue-manager');
+
+// place all query requests into one file
 
 var verifyInputPromise = ( registrationBody ) => { // checks if the input is correct
     return new Promise((resolve,reject) => {
         // init array of errors
         var errors = [];
-
         // get message received params
         var dateRec = moment( registrationBody.date.split('+')[0].split(',')[0] , 'YY/MM/DD' ,true); // TODO: set deadline time for registration
         var contactNo = registrationBody.number;
-
         // get message info
         var msgParse = registrationBody.message.split('-'); // split string based on the defined delimiter
-
+        msgParse.forEach( (msgPart) => msgPart = msgPart.trim() ); // remove whitespace in between dashes
+        msgParse[0] = msgParse[0].toUpperCase(); // set the first part of the message (name) to ALL CAPS
+        msgParse[1] = msgParse[1].replace(/ +/g, ""); // remove all whitespace from the date input to concur to format
         // fix the date if client only used single digits
         // TODO: fix other common mistakes
         var dateFromMsgStr = '';
@@ -27,18 +28,41 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
         }
 
         var dateFromMsg = moment( dateFromMsgStr , 'MM/DD/YY' , true );
-
         // check for element validity
         //TODO: add cross-site scripting check or SANITIZE the input
         if( msgParse.length < 2 || msgParse.length > 3 ) { // check if the message contains required number of string elements for format
             errors.push({ type : 'ParseError' , message : 'message does not contain required number of elements...' });
+            ox.addJob({
+                body : {
+                    type : 'SEND',
+                    flag : 'P',
+                    number : contactNo,
+                    message : ''
+                }
+            });
         }
         if( !dateFromMsg.isValid() ) {
             errors.push({ type : 'ParseError' , message : 'Cannot parse the given input date...' });
+            ox.addJob({
+                body : {
+                    type : 'SEND',
+                    flag : 'P',
+                    number : contactNo,
+                    message : ''
+                }
+            });
         }
         // check for date validity OR one day before rule check
         if( dateRec.isAfter( dateFromMsg.clone().subtract(1,'days') ) ) {
             errors.push( { type : 'TimingError' , message : 'you must sign up one day before the desired appointment...' } );
+            ox.addJob( { // add a job to send client a text about the e
+                body: {
+                    type : 'SEND',
+                    flag : 'T',
+                    number : contactNo,
+                    message : ''
+                }
+            });
         }
 
         if( errors.length > 0 ) {
@@ -49,7 +73,7 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
             var dateFromMsgFrmtd = dateFromMsg.format("MMMM Do YYYY, dddd"); // TODO: add security check and accomodate single digit and four digit year
             var clientName = msgParse[0];
             var clientReason = msgParse.length > 2 ? msgParse[2] : ''; // get client reason from message (if any)
-
+            // place all registration data into one object for convenience
             var regData = { // body of verified message
                 dateRecieved : dateRec,
                 contactNumber : contactNo,
@@ -63,17 +87,18 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
     });
 }
 
-var getAvailablePromise = ( contactNo , targetDate ) => { // polls db to check if the requested date is available
+var getAvailableSchedulesPromise = ( contactNo , targetDate ) => { // polls db to check if the requested date is available
     return new Promise((resolve,reject) => {
         var query = 'SELECT sched_date, sched_time FROM schedule WHERE ( sched_taken < sched_slots AND sched_date = ?)';
         conn.query( query, targetDate , (err,rows,fields) => {
             if( err ) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } );
             if( rows.length == 0 ) {
-                ox.addJob( { // add a job to send client a text about the e
+                ox.addJob( { // add a job to send client a text about the error
                     body: {
                         type : 'SEND',
+                        flag : 'F',
                         number : contactNo,
-                        message : 'No available slots for selected date. Choose another one.'
+                        message : ''
                     }
                 });
                 reject( { type : 'TimingError' , message : 'no available slots for selected date...' } );
@@ -84,7 +109,7 @@ var getAvailablePromise = ( contactNo , targetDate ) => { // polls db to check i
     });
 };
 
-var writeToSchedulePromise = ( targetSched ) => { // 
+var writeToSchedulePromise = ( targetSched ) => { 
     return new Promise((resolve, reject) => {
         var query = `UPDATE schedule SET sched_taken = sched_taken + 1 WHERE sched_date = '${targetSched.sched_date}' AND sched_time = '${targetSched.sched_time}'`;
         conn.query( query , (err,rows,fields) => {
@@ -94,7 +119,7 @@ var writeToSchedulePromise = ( targetSched ) => { //
     });
 }
 
-var getOrderPromise = ( targetSched ) => {
+var getClientOrderPromise = ( targetSched ) => {
     return new Promise((resolve, reject) => {
         var query = `SELECT sched_taken FROM schedule WHERE sched_date = '${targetSched.sched_date}' AND sched_time = '${targetSched.sched_time}'`;
         conn.query( query , (err,rows,fields) => {
@@ -104,7 +129,7 @@ var getOrderPromise = ( targetSched ) => {
     });
 }
 
-var writeToClientsPromise = ( clientName , clientDate, clientTime , clientOrder , clientReason , clientNumber ) => {
+var writeToClientsTablePromise = ( clientName , clientDate, clientTime , clientOrder , clientReason , clientNumber ) => {
     return new Promise( (resolve,reject) => {
         var query = `INSERT INTO clients (client_name, client_day, client_time, client_order, client_reason, client_number) VALUES
         ('${clientName}', '${clientDate}', '${clientTime}', ${clientOrder}, '${clientReason}', '${clientNumber}');`; // TODO: secure payload here as well
@@ -115,21 +140,8 @@ var writeToClientsPromise = ( clientName , clientDate, clientTime , clientOrder 
     });
 }
 
-var sendMessage = ( sendBody ) => {
-    return new Promise( (resolve,reject) => {
-        const writeString = `${sendBody.number};${sendBody.message}\n`;
-        port.write( writeString , function(err) {
-            if (err) {
-                reject({ type : 'SerialCommError' , message : 'Cannot communicate to serial...' });
-            }
-            resolve( { status : 'OK' , message : `Message send success, the message: ${sendBody.message} sent to the number ${sendBody.number}` } );
-        });
-    });
-}
-
 module.exports.verifyInputPromise = verifyInputPromise;
-module.exports.getAvailablePromise = getAvailablePromise;
+module.exports.getAvailableSchedulesPromise = getAvailableSchedulesPromise;
 module.exports.writeToSchedulePromise = writeToSchedulePromise;
-module.exports.getOrderPromise = getOrderPromise;
-module.exports.writeToClientsPromise = writeToClientsPromise;
-module.exports.sendMessage = sendMessage;
+module.exports.getClientOrderPromise = getClientOrderPromise;
+module.exports.writeToClientsTablePromise = writeToClientsTablePromise;
