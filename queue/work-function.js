@@ -32,7 +32,7 @@ var work_fn = async function (job_body) {
 
 var processRegistration = ( registrationBody ) => {
     return new Promise( (topRes , topRej) => {
-        var regData , targetSched;
+        var regData , targetSched,orderData;
         var errors = [];
 
         serverWorker.verifyInputPromise( registrationBody ).then( (resRegData) => { // TODO: secure table polling against cross-site scripting
@@ -45,14 +45,18 @@ var processRegistration = ( registrationBody ) => {
             applog.log( queryRes.message );
             return serverWorker.getClientOrderPromise( targetSched );
         }).then(( order ) => {
-            return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
+            orderData = { // assign order information to object for easier readability
+                order  : order.sched_taken,
+                slots : order.sched_slots
+            }
+            return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , orderData.order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
         }).then((queryRes) => {
-            ox.addJob({
+            ox.addJob({ // send registration successful message to queue
                 body : {
                     type : 'SEND',
                     flag : 'S',
                     number : regData.contactNumber,
-                    message : `${regData.dateFromMsg.format('MM/DD/YY')}, ${targetSched.sched_time}!`
+                    message : `${regData.dateFromMsg.format('MM/DD/YY')}, ${targetSched.sched_time}!abc1,${orderData.order}/${orderData.slots}`
                 }
             });
             return queryRes;

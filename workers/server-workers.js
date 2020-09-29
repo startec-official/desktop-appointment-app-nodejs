@@ -2,7 +2,7 @@ const conn = require('../connections/mysql-connection');
 const moment = require('moment');
 const ox = require('../utils/queue-manager');
 
-// place all query requests into one file
+// TODO: place all query requests into one file
 
 var verifyInputPromise = ( registrationBody ) => { // checks if the input is correct
     return new Promise((resolve,reject) => {
@@ -12,60 +12,58 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
         var dateRec = moment( registrationBody.date.split('+')[0].split(',')[0] , 'YY/MM/DD' ,true); // TODO: set deadline time for registration
         var contactNo = registrationBody.number;
         // get message info
-        var msgParse = registrationBody.message.split('-'); // split string based on the defined delimiter
-        msgParse.forEach( (msgPart) => msgPart = msgPart.trim() ); // remove whitespace in between dashes
-        msgParse[0] = msgParse[0].toUpperCase(); // set the first part of the message (name) to ALL CAPS
-        msgParse[1] = msgParse[1].replace(/ +/g, ""); // remove all whitespace from the date input to concur to format
-        // fix the date if client only used single digits
-        // TODO: fix other common mistakes
+        try {
+            var msgParse = registrationBody.message.split('-'); // split string based on the defined delimiter
+            msgParse.forEach( (msgPart) => msgPart = msgPart.trim() ); // remove whitespace in between dashes
+            msgParse[0] = msgParse[0].toUpperCase(); // set the first part of the message (name) to ALL CAPS
+            msgParse[1] = msgParse[1].replace(/ +/g, ""); // remove all whitespace from the date input to concur to format
+        } catch( e ) {
+            errors.push( { type : 'ParseError' , message : 'Error parsing text message...' } );
+        }
         var dateFromMsgStr = '';
         try {
             var dateFromMsgRaw = msgParse[1];
             var parseString = dateFromMsgRaw.split('/');
+            // the next line fixes the input if in single digits // TODO: fix other common mistakes
             dateFromMsgStr = `${ parseString[0].length == 2 ? parseString[0] : `0${parseString[0]}` }/${ parseString[1].length == 2 ? parseString[1] : `0${parseString[1]}` }/${ parseString[2].length == 2 ? parseString[2] : parseString[2].substring(2,4) }`;
         } catch( e ) {
             errors.push( { type : 'ParseError' , message : 'Error parsing the input date...' } );
         }
-
         var dateFromMsg = moment( dateFromMsgStr , 'MM/DD/YY' , true );
         // check for element validity
         //TODO: add cross-site scripting check or SANITIZE the input
         if( msgParse.length < 2 || msgParse.length > 3 ) { // check if the message contains required number of string elements for format
             errors.push({ type : 'ParseError' , message : 'message does not contain required number of elements...' });
-            ox.addJob({
-                body : {
-                    type : 'SEND',
-                    flag : 'P',
-                    number : contactNo,
-                    message : ''
-                }
-            });
         }
         if( !dateFromMsg.isValid() ) {
             errors.push({ type : 'ParseError' , message : 'Cannot parse the given input date...' });
-            ox.addJob({
-                body : {
-                    type : 'SEND',
-                    flag : 'P',
-                    number : contactNo,
-                    message : ''
-                }
-            });
         }
         // check for date validity OR one day before rule check
         if( dateRec.isAfter( dateFromMsg.clone().subtract(1,'days') ) ) {
             errors.push( { type : 'TimingError' , message : 'you must sign up one day before the desired appointment...' } );
-            ox.addJob( { // add a job to send client a text about the e
-                body: {
-                    type : 'SEND',
-                    flag : 'T',
-                    number : contactNo,
-                    message : ''
-                }
-            });
         }
 
         if( errors.length > 0 ) {
+            if( errors.filter((error) => error.type === 'ParseError').length > 0 ) {
+                ox.addJob({
+                    body : {
+                        type : 'SEND',
+                        flag : 'P',
+                        number : contactNo,
+                        message : ''
+                    }
+                });
+            }
+            if( errors.filter((error) => error.type === 'TimingError').length > 0 ) {
+                ox.addJob({
+                    body : {
+                        type : 'SEND',
+                        flag : 'T',
+                        number : contactNo,
+                        message : ''
+                    }
+                });
+            }
             reject( errors );
         }
         else {
@@ -121,10 +119,10 @@ var writeToSchedulePromise = ( targetSched ) => {
 
 var getClientOrderPromise = ( targetSched ) => {
     return new Promise((resolve, reject) => {
-        var query = `SELECT sched_taken FROM schedule WHERE sched_date = '${targetSched.sched_date}' AND sched_time = '${targetSched.sched_time}'`;
+        var query = `SELECT sched_taken,sched_slots FROM schedule WHERE sched_date = '${targetSched.sched_date}' AND sched_time = '${targetSched.sched_time}'`;
         conn.query( query , (err,rows,fields) => {
             if(err) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } );
-            resolve( rows[0].sched_taken ); // take the only result from the list
+            resolve( rows[0] ); // take the only result from the list, send an pair object of current order (rows[0].sched_taken) and total number of slots (rows[0].sched_slots)
         });
     });
 }

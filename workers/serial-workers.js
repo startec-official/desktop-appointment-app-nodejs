@@ -11,7 +11,8 @@ var sendMessage = ( sendBody ) => {
             }
             serialFlag.on( 'messageSent' , ( eventData ) => { // TODO: remove event listener upon completion
                 console.log( 'you managed!' );
-                resolve( { status : 'OK' , message : `Message send success, the message: ${sendBody.message} sent to the number ${sendBody.number}` } );
+                serialFlag.removeAllListeners(["messageSent"]);
+                resolve({ status : 'OK' , message : `Message send success, the message: ${sendBody.message} sent to the number ${sendBody.number}` });
             });
             // setTimeout( () => { // TODO: set timeout function, reject if not sent after interval
             //     reject( { type : 'SerialTimeOutError' , message : 'Serial took too long to respond...' } );

@@ -30,7 +30,7 @@ module.exports = function( data ) {
           break;
         case 'F':
           break;
-        default:
+        default:  
       }
       break;
     case 'R': // handle registration text received
