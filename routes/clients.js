@@ -4,6 +4,7 @@ var clientsRouter = express.Router();
 var connection = require('../connections/mysql-connection');
 var moment = require('moment');
 const { connect } = require('../connections/mysql-connection');
+const ox = require('../utils/queue-manager');
 
 clientsRouter.use(function (req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*'); // TODO: write more secure headers
@@ -29,11 +30,18 @@ clientsRouter.delete( '/remove/:userIds' , (req,res,next) => { // TODO: secure q
     });
 });
 
+clientsRouter.get('/neworder/:userIds',(req,res)=>{
+    const userIds = req.params.userIds.split(',');
+    const idArray = userIds.map((id)=>parseInt(id,10));
+    connection.query('SELECT client_order,  FROM clients WHERE client_id IN ?' , [[idArray]],(err,rows,fields)=>{
+        if(err) throw err;
+        rows.json(rows);
+    });
+});
+
 clientsRouter.post( '/transfer/:newDate/:newTime' , (req,res) => { // TODO : standardize database date format
     const newDate  = moment(req.params.newDate).format('MM/DD/YYYY');
     const newTime = req.params.newTime;
-    console.log( `newDate : ${newDate} and newTime : ${newTime}` );
-    console.log(newDate);
     var getOrderPromise = new Promise( (resolve,reject) => {
         connection.query(`SELECT MAX(client_order) AS final_order FROM clients WHERE client_day = '${newDate}' AND client_time = '${newTime}'`,(err,rows,fields) => {
             if( err ) {
@@ -46,7 +54,6 @@ clientsRouter.post( '/transfer/:newDate/:newTime' , (req,res) => { // TODO : sta
         });
     });
     getOrderPromise.then( (lastClientOrder) => {
-        console.log( lastClientOrder );
         var schedData = [];
         for( let index = 0 ; index < req.body.length ; index ++ ) {
             const newClientOrder = parseInt(lastClientOrder) + index + 1;
@@ -64,7 +71,6 @@ clientsRouter.post( '/transfer/:newDate/:newTime' , (req,res) => { // TODO : sta
             )
             VALUES ?
         `;
-        console.log( schedData );
         connection.query( query , [schedData] , (err,rows,fields) => {
             if( err ) throw err;
             res.sendStatus(200);
@@ -93,7 +99,6 @@ clientsRouter.post( '/resched/transfer' , (req,res) => {
         )
         VALUES ?
     `;
-    console.log( schedData );
     connection.query( query , [schedData] , (err,rows,fields) => {
         if( err ) throw err;
         res.sendStatus(200);
@@ -106,6 +111,59 @@ clientsRouter.delete( '/resched/remove/:array' , (req,res,next) => { // TODO: se
     connection.query( 'DELETE FROM reschedule_clients WHERE client_id IN ?' , [[idArray]] , (err , rows , fields) => {
         if( err ) throw err;
         res.sendStatus(200);
+    });
+});
+
+clientsRouter.post( '/sendmessage/custom/:contacts' , (req,res) => {
+    const customMessage = req.body.customMessage;
+    const contactNos = req.params.contacts.split(',');
+    contactNos.forEach( (contact) => {
+        // ox.addJob({
+        //     body : {
+        //         type : 'SEND',
+        //         flag : 'C',
+        //         number : contact,
+        //         message : customMessage
+        //     }
+        // });
+    });
+    res.sendStatus(200);
+});
+
+clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => {
+    const date = moment(req.body.date).format('MM/DD/YY');
+    const time = req.body.time;
+    const contactNos = req.params.contacts.split(',');
+    const codes = req.body.codes;
+    console.log( `date: ${date} , time : ${time}` );
+    console.log('codes:');
+    console.log( codes );
+    for (let index = 0; index < contactNos.length; index++) {
+        console.log(`recipient: ${contactNos[index]}`);
+        // ox.addJob({
+        //     body : {
+        //         type : 'SEND',
+        //         flag : 'R',
+        //         number : contactNos[index],
+        //         message : `${date},${time},${codes[index]}`
+        //     }
+        // });
+    }
+});
+
+clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> {
+    const contactNos = req.params.contacts.split(',');
+    console.log('moved the clients to resched management...');
+    contactNos.forEach((contact)=>{
+        console.log( `recipient: ${contact}` );
+        // ox.addJob({
+        //     body : {
+        //         type : 'SEND',
+        //         flag : 'M',
+        //         number : contact,
+        //         message : ''
+        //     }
+        // });
     });
 });
 

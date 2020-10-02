@@ -10,7 +10,6 @@ var sendMessage = ( sendBody ) => {
                 reject({ type : 'SerialCommError' , message : 'Cannot communicate to serial...' });
             }
             serialFlag.on( 'messageSent' , ( eventData ) => { // TODO: remove event listener upon completion
-                console.log( 'you managed!' );
                 serialFlag.removeAllListeners(["messageSent"]);
                 resolve({ status : 'OK' , message : `Message send success, the message: ${sendBody.message} sent to the number ${sendBody.number}` });
             });
