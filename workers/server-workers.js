@@ -18,24 +18,24 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
             msgParse[0] = msgParse[0].toUpperCase(); // set the first part of the message (name) to ALL CAPS
             msgParse[1] = msgParse[1].replace(/ +/g, ""); // remove all whitespace from the date input to concur to format
         } catch( e ) {
-            errors.push( { type : 'ParseError' , message : 'Error parsing text message...' } );
+            errors.push( { type : 'ParseError' , message : 'Error parsing text message...' } ); // push the error message to the array of errors
         }
         var dateFromMsgStr = '';
         try {
-            var dateFromMsgRaw = msgParse[1];
+            var dateFromMsgRaw = msgParse[1]; // gets the appointment date from the message body
             var parseString = dateFromMsgRaw.split('/');
             // the next line fixes the input if in single digits // TODO: fix other common mistakes
             dateFromMsgStr = `${ parseString[0].length == 2 ? parseString[0] : `0${parseString[0]}` }/${ parseString[1].length == 2 ? parseString[1] : `0${parseString[1]}` }/${ parseString[2].length == 2 ? parseString[2] : parseString[2].substring(2,4) }`;
         } catch( e ) {
             errors.push( { type : 'ParseError' , message : 'Error parsing the input date...' } );
         }
-        var dateFromMsg = moment( dateFromMsgStr , 'MM/DD/YY' , true );
+        var dateFromMsg = moment( dateFromMsgStr , 'MM/DD/YY' , true ); // convert the date into a Moment object for easier handling
         // check for element validity
         //TODO: add cross-site scripting check or SANITIZE the input
         if( msgParse.length < 2 || msgParse.length > 3 ) { // check if the message contains required number of string elements for format
             errors.push({ type : 'ParseError' , message : 'message does not contain required number of elements...' });
         }
-        if( !dateFromMsg.isValid() ) {
+        if( !dateFromMsg.isValid() ) { // check if the date is valid
             errors.push({ type : 'ParseError' , message : 'Cannot parse the given input date...' });
         }
         // check for date validity OR one day before rule check
@@ -43,10 +43,10 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
             errors.push( { type : 'TimingError' , message : 'you must sign up one day before the desired appointment...' } );
         }
 
-        if( errors.length > 0 ) {
+        if( errors.length > 0 ) { // signal errors when present in the array
             if( errors.filter((error) => error.type === 'ParseError').length > 0 ) {
                 ox.addJob({
-                    body : {
+                    body : { // send a wrong format message, adds a send job to the main server queue, details provided in queue-process.js
                         type : 'SEND',
                         flag : 'P',
                         number : contactNo,
@@ -56,7 +56,7 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
             }
             if( errors.filter((error) => error.type === 'TimingError').length > 0 ) {
                 ox.addJob({
-                    body : {
+                    body : { // send a timing error message, adds a send job to the main server queue, details provided in queue-process.js
                         type : 'SEND',
                         flag : 'T',
                         number : contactNo,
@@ -91,8 +91,8 @@ var getAvailableSchedulesPromise = ( contactNo , targetDate ) => { // polls db t
         conn.query( query, targetDate , (err,rows,fields) => {
             if( err ) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } );
             if( rows.length == 0 ) {
-                ox.addJob( { // add a job to send client a text about the error
-                    body: {
+                ox.addJob( {
+                    body: {// send an error message, adds a send job to the main server queue, details provided in queue-process.js
                         type : 'SEND',
                         flag : 'F',
                         number : contactNo,
@@ -107,17 +107,17 @@ var getAvailableSchedulesPromise = ( contactNo , targetDate ) => { // polls db t
     });
 };
 
-var writeToSchedulePromise = ( targetSched ) => { 
+var writeToSchedulePromise = ( targetSched ) => { // function that increments the number of slots taken in the schedule table for the specified date and time
     return new Promise((resolve, reject) => {
         var query = `UPDATE schedule SET sched_taken = sched_taken + 1 WHERE sched_date = '${targetSched.sched_date}' AND sched_time = '${targetSched.sched_time}'`;
         conn.query( query , (err,rows,fields) => {
             if(err) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } ); // TODO: SECURE payload here
-            resolve( { status : 'OK' , message : 'sucessfully updated schedule table...' } );
+            resolve( { status : 'OK' , message : 'sucessfully updated schedule table...' } ); // send success message
         });
     });
 }
 
-var getClientOrderPromise = ( targetSched ) => {
+var getClientOrderPromise = ( targetSched ) => { // gets the position of the client to be registered in the queue
     return new Promise((resolve, reject) => {
         var query = `SELECT sched_taken,sched_slots FROM schedule WHERE sched_date = '${targetSched.sched_date}' AND sched_time = '${targetSched.sched_time}'`;
         conn.query( query , (err,rows,fields) => {
