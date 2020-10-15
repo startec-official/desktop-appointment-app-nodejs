@@ -5,6 +5,14 @@ var connection = require('../connections/mysql-connection'); // // module that a
 var applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 var moment = require('moment'); // handly module for working with dates and times
 
+/*
+    schedule table schema:
+        sched_date - contains date of the appointment in 'Month day, Year, dayOfWeek' format
+        sched_time - contains string of time range for appointment
+        sched_taken - number of slots taken for the date and time
+        sched_slots - total number of sched slots declared available in the form
+*/
+
 scheduleRouter.use(function (req, res, next) { // define the headers the router uses
     res.setHeader('Access-Control-Allow-Origin', '*'); // TODO: write more secure headers
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE');
