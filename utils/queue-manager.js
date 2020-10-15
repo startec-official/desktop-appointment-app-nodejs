@@ -1,6 +1,6 @@
 const Oxen = require('oxen-queue') // module enabling the creation of a queue for the server
 const dotenv = require('dotenv') // module for accessing the environment file
-// uses the defined values in the environment variable
+// uses the defined values in the environment file
 dotenv.config() 
 
 const ox = new Oxen({ // create a new queue instance

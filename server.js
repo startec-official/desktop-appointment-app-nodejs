@@ -10,7 +10,7 @@ const applog = require('./utils/debug-log'); // custom log module that can be sw
 // parser for serial input from arduino device, completes the buffer at newlines
 const Readline = require('@serialport/parser-readline');
 const parser = deviceConn.pipe(new Readline({ delimiter: '\r\n' }))
-// uses the defined values in the environment variable
+// uses the defined values in the environment file
 dotenv.config(); 
 // express variables
 var app = express(); // initializes express
