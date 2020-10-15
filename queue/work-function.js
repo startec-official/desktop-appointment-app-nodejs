@@ -1,7 +1,7 @@
-const applog = require('../utils/debug-log');
-const serverWorker = require('../workers/server-workers');
-const serialWorker = require('../workers/serial-workers');
-const ox = require('../utils/queue-manager');
+const applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
+const serverWorker = require('../workers/server-workers'); // module that handles internal server processes
+const serialWorker = require('../workers/serial-workers'); // module that handles interactions with the device via serial
+const ox = require('../utils/queue-manager'); // module for managing queue processes
 
 var work_fn = async function (job_body) { // function containing bulk of the code for the queue process
     var promise = new Promise(function(resolve, reject) {
