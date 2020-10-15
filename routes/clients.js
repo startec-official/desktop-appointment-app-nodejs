@@ -1,12 +1,27 @@
 var express = require('express'); // an API (called REST API) that allows servers to handle HTTP requests
 var clientsRouter = express.Router(); // start the express service
-var connection = require('../connections/mysql-connection'); // module that allows connecting to a mysql server
+var connection = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
 var moment = require('moment'); // handly module for working with dates and times
 const ox = require('../utils/queue-manager'); // module for handling queue processes
 
 /* 
-    Client Object Schema (for client-side code):
-        
+    Client object schema (for client-side code):
+        userId : number;
+        name : string;
+        date : Moment;
+        time : string;
+        order : number;
+        contactNumber : string;
+        reason? : string;
+
+    client (and resched_client) table schema (backend):
+        client_id - unique id assigned to each client, autoincrement
+        client_name - full name of the client
+        client_day - date of client appointment in MM/DD/YYYY format
+        client_time - time range of client appointment
+        client_order - the position of the client in the queue
+        client_reason - the optional provided reason by client, can also contain the PRIORITY flag
+        client_number - client's contact number
 */
 
 clientsRouter.use(function (req, res, next) {  // define the headers the router uses
