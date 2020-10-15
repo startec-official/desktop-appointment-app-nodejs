@@ -1,11 +1,11 @@
-const Oxen = require('oxen-queue')
-const dotenv = require('dotenv')
+const Oxen = require('oxen-queue') // module enabling the creation of a queue for the server
+const dotenv = require('dotenv') // module for accessing the environment file
+// uses the defined values in the environment variable
+dotenv.config() 
 
-dotenv.config()
-
-const ox = new Oxen({
+const ox = new Oxen({ // create a new queue instance
     mysql_config: {
-        host: `${process.env.DB_HOST}`,
+        host: `${process.env.DB_HOST}`, // actual values found in env variable, done to protect sensitive information
         user: `${process.env.DB_USER}`,
         password: `${process.env.password}`,
         database: `${process.env.database}`
