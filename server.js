@@ -26,8 +26,6 @@ app.listen( process.env.PORT , () => { // starts a listener on the server port
 })
 
 // TODO: send delay between SIM800L startup, arduino startup and server startup
-
-// switch case for serial input
 // starts a listener on the port with the arduino device
 parser.on('data', ( data ) => { // listens to incoming data from the serial once connected
   applog.log( data );
