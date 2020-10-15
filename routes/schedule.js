@@ -54,6 +54,14 @@ scheduleRouter.post( '/changeslot/:schedDate/:schedTime/:increment' , (req,res) 
     });
 });
 
+scheduleRouter.post('/fillslot/:schedDate',(req,res)=>{
+    const date = req.params.schedDate;
+    connection.query(' UPDATE schedule SET sched_taken = sched_slots WHERE sched_date = ?',date,(err,rows,fields)=>{
+        if(err) throw err;
+        res.sendStatus(200);
+    });
+});
+
 scheduleRouter.delete('/clearAll' , ( req , res , next ) => {
     connection.query( 'DELETE FROM schedule' , (err, res, fields) => {
         if( err ) throw err;
@@ -62,7 +70,7 @@ scheduleRouter.delete('/clearAll' , ( req , res , next ) => {
 });
 
 scheduleRouter.get( '/select/out' , (req,res) => {
-    connection.query( 'SELECT DISTINCT sched_date FROM schedule WHERE sched_slots > 0' , ( err,rows,fields ) => {
+    connection.query( 'SELECT DISTINCT sched_date FROM schedule WHERE sched_slots > 0 AND sched_taken < sched_slots' , ( err,rows,fields ) => {
         if( err ) throw err;
         res.json( rows );
     });

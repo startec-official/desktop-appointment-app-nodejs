@@ -25,7 +25,8 @@ module.exports = function( data ) {
           // start queue manager
           ox.process({
             work_fn : workFn.work_fn,
-            concurrency : 1
+            concurrency : 1,
+            timeout : 20
           });
           break;
         case 'F':
@@ -34,6 +35,18 @@ module.exports = function( data ) {
       }
       break;
     case 'R': // handle registration text received
+      if( data.split(';')[2] == 'HELP' ) {
+        const contactNo = data.substring(2,data.length).split(';')[0];
+        ox.addJob({
+          body : {
+            type : 'SEND',
+            flag : 'H',
+            number : contactNo,
+            message : ''
+          }
+        });
+        break;
+      } 
       switch( key[1] ) {
         case 'R' :
           if( data.split(';').length < 3 ) { // check if the serial output is in the proper format
@@ -78,7 +91,7 @@ module.exports = function( data ) {
       }
       break;
     default:
-      applog.log('cannot understand input...');
+      // applog.log('cannot understand input...');
       errors.push( { type : 'BadPollingError' , message : 'command not recognized. please check input...' } );
   }
 }

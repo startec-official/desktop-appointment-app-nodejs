@@ -1,9 +1,7 @@
-const { query } = require('express');
 var express = require('express');
 var clientsRouter = express.Router();
 var connection = require('../connections/mysql-connection');
 var moment = require('moment');
-const { connect } = require('../connections/mysql-connection');
 const ox = require('../utils/queue-manager');
 
 clientsRouter.use(function (req, res, next) {
@@ -14,12 +12,30 @@ clientsRouter.use(function (req, res, next) {
     next();
 });
 
-clientsRouter.get('/displayAll',(req,res)=> {
+clientsRouter.get('/display/all',(req,res)=> {
     connection.query('SELECT * FROM clients', function (err, rows, fields) { 
-        if (err) throw err
+        if (err) throw err;
         res.json(rows);
     });
 });
+
+clientsRouter.get('/display/ids/:currentDate',(req,res)=>{
+    const tempDate = req.params.currentDate;
+    const queryDate = moment(tempDate,'MMMM Do YYYY, dddd',true).format('MM/DD/YYYY');
+    connection.query('SELECT client_id FROM clients WHERE client_day = ?',queryDate,(err,rows,fields) => {
+        if(err) throw err;
+        res.json(rows);
+    });
+})
+
+clientsRouter.get('/display/contactpairs/:currentDate',(req,res)=>{
+    const tempDate = req.params.currentDate;
+    const queryDate = moment(tempDate,'MMMM Do YYYY, dddd',true).format('MM/DD/YYYY');
+    connection.query('SELECT client_id,client_number FROM clients where client_day = ?',queryDate,(err,rows,fields)=>{
+        if(err) throw err;
+        res.json(rows);
+    });
+})
 
 clientsRouter.delete( '/remove/:userIds' , (req,res,next) => { // TODO: secure queries with hashed auth or headers
     const input = req.params.userIds.split(',');
@@ -118,14 +134,14 @@ clientsRouter.post( '/sendmessage/custom/:contacts' , (req,res) => {
     const customMessage = req.body.customMessage;
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach( (contact) => {
-        // ox.addJob({
-        //     body : {
-        //         type : 'SEND',
-        //         flag : 'C',
-        //         number : contact,
-        //         message : customMessage
-        //     }
-        // });
+        ox.addJob({
+            body : {
+                type : 'SEND',
+                flag : 'C',
+                number : contact,
+                message : customMessage
+            }
+        });
     });
     res.sendStatus(200);
 });
@@ -135,20 +151,43 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
     const time = req.body.time;
     const contactNos = req.params.contacts.split(',');
     const codes = req.body.codes;
-    console.log( `date: ${date} , time : ${time}` );
-    console.log('codes:');
     console.log( codes );
     for (let index = 0; index < contactNos.length; index++) {
         console.log(`recipient: ${contactNos[index]}`);
-        // ox.addJob({
-        //     body : {
-        //         type : 'SEND',
-        //         flag : 'R',
-        //         number : contactNos[index],
-        //         message : `${date},${time},${codes[index]}`
-        //     }
-        // });
+        const parseTime = time.split('-');
+        var timeComp = [];
+        parseTime.forEach((time)=>{
+            const hour = parseInt(time.split(':')[0]);
+            const minute = time.split(':')[1];
+            timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`); 
+        });
+        const timeString = `${timeComp[0]} to ${timeComp[1]}`;
+        ox.addJob({
+            body : {
+                type : 'SEND',
+                flag : 'R',
+                number : contactNos[index],
+                message : `${date}|${timeString}|${codes[index]}`
+            }
+        });
     }
+});
+
+clientsRouter.post('/sendmessage/reschedule/cancel/:contacts',(req,res)=>{
+    const contactNos = req.params.contacts.split(',');
+    console.log('moved the clients to resched management...');
+    contactNos.forEach((contact)=>{
+        console.log( `recipient: ${contact}` );
+        ox.addJob({
+            body : {
+                type : 'SEND',
+                flag : 'X',
+                number : contact,
+                message : ''
+            }
+        });
+    });
+    res.sendStatus(200);
 });
 
 clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> {
@@ -156,14 +195,14 @@ clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> {
     console.log('moved the clients to resched management...');
     contactNos.forEach((contact)=>{
         console.log( `recipient: ${contact}` );
-        // ox.addJob({
-        //     body : {
-        //         type : 'SEND',
-        //         flag : 'M',
-        //         number : contact,
-        //         message : ''
-        //     }
-        // });
+        ox.addJob({
+            body : {
+                type : 'SEND',
+                flag : 'M',
+                number : contact,
+                message : ''
+            }
+        });
     });
 });
 

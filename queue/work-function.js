@@ -51,12 +51,21 @@ var processRegistration = ( registrationBody ) => {
             }
             return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , orderData.order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
         }).then((queryRes) => {
+            const parseTime = targetSched.sched_time.split('-');
+            var timeComp = [];
+            parseTime.forEach((time)=>{
+                const hour = parseInt(time.split(':')[0]);
+                const minute = time.split(':')[1];
+                timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`); 
+            });
+            const timeString = `${timeComp[0]} to ${timeComp[1]}`;
+            console.log(`timeString: ${timeString}`);
             ox.addJob({ // send registration successful message to queue
                 body : {
                     type : 'SEND',
                     flag : 'S',
                     number : regData.contactNumber,
-                    message : `${regData.dateFromMsg.format('MM/DD/YY')}, ${targetSched.sched_time}!abc1,${orderData.order}/${orderData.slots}`
+                    message : `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|ABCD|${orderData.order}/${orderData.slots}`
                 }
             });
             return queryRes;
