@@ -1,6 +1,6 @@
-const conn = require('../connections/mysql-connection');
-const moment = require('moment');
-const ox = require('../utils/queue-manager');
+const conn = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
+const moment = require('moment'); // handly module for working with dates and times
+const ox = require('../utils/queue-manager'); // module for handling queue processes
 
 // TODO: place all query requests into one file
 
