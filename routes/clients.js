@@ -36,7 +36,7 @@ clientsRouter.use(function (req, res, next) {  // define the headers the router 
 
 clientsRouter.get('/display/all',(req,res)=> { // displays all active client data
     connection.query('SELECT * FROM clients', function (err, rows, fields) { 
-        if (err) throw error; // TODO: error handling
+        if (err) throw err; // TODO: error handling
         res.json(rows); // send the results as a JSON body
     });
 });
