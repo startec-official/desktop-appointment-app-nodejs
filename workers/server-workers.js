@@ -1,6 +1,7 @@
 const conn = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
 const moment = require('moment'); // handly module for working with dates and times
 const ox = require('../utils/queue-manager'); // module for handling queue processes
+const crypto = require('../utils/crypto'); // module for generating random string
 
 // TODO: place all query requests into one file
 
@@ -71,6 +72,7 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
             var dateFromMsgFrmtd = dateFromMsg.format("MMMM Do YYYY, dddd"); // TODO: add security check and accomodate single digit and four digit year
             var clientName = msgParse[0];
             var clientReason = msgParse.length > 2 ? msgParse[2] : ''; // get client reason from message (if any)
+            var clientCode = crypto.generateRandomCode(4); // generate client unique random client code
             // place all registration data into one object for convenience
             var regData = { // body of verified message
                 dateRecieved : dateRec,
@@ -78,7 +80,8 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
                 dateFromMsg : dateFromMsg,
                 dateFromMsgFrmtd : dateFromMsgFrmtd,
                 clientName : clientName,
-                clientReason : clientReason
+                clientReason : clientReason,
+                clientCode : clientCode
             }
             resolve( regData );
         }
@@ -127,10 +130,10 @@ var getClientOrderPromise = ( targetSched ) => { // gets the position of the cli
     });
 }
 
-var writeToClientsTablePromise = ( clientName , clientDate, clientTime , clientOrder , clientReason , clientNumber ) => {
+var writeToClientsTablePromise = ( clientName , clientDate, clientTime , clientOrder , clientReason , clientNumber , clientCode ) => {
     return new Promise( (resolve,reject) => {
-        var query = `INSERT INTO clients (client_name, client_day, client_time, client_order, client_reason, client_number) VALUES
-        ('${clientName}', '${clientDate}', '${clientTime}', ${clientOrder}, '${clientReason}', '${clientNumber}');`; // TODO: secure payload here as well
+        var query = `INSERT INTO clients (client_name, client_day, client_time, client_order, client_reason, client_number, client_code) VALUES
+        ('${clientName}', '${clientDate}', '${clientTime}', ${clientOrder}, '${clientReason}', '${clientNumber}','${clientCode}');`; // TODO: secure payload here as well
         conn.query( query , (err,rows,fields) => {
             if( err ) reject( { type : 'SQLError' , message : 'There was an error connecting with the database' } ); // TODO: error handling
             resolve( { status : 'OK' , message : 'written to client and schedule db...' } );

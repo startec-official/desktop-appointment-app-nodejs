@@ -19,6 +19,12 @@ function decrypt( text ) {
     return decrypted.toString();
 }
 
-var hw = encrypt( 'some serious stuff' );
-console.log( hw );
-console.log( decrypt(hw) );
+function generateRandomCode( numOfChars ) {
+    return crypto.randomBytes(numOfChars).toString('hex').slice(0,numOfChars);
+}
+
+// var hw = encrypt( 'some serious stuff' );
+// console.log( hw );
+// console.log( decrypt(hw) );
+
+module.exports.generateRandomCode = generateRandomCode;

@@ -29,8 +29,10 @@ var work_fn = async function (job_body) { // function containing bulk of the cod
 
 var processRegistration = ( registrationBody ) => { // function for handling appointment registration
     return new Promise( (topRes , topRej) => {
-        var regData , targetSched,orderData;
-        var errors = [];
+        var regData; // holds the client information
+        var targetSched; // holds the target schedule information
+        var orderData; // holds retrieved position of client in queue
+        var errors = []; // holds errors encountered by function
         // TODO: secure table polling against cross-site scripting
         serverWorker.verifyInputPromise( registrationBody ).then( (resRegData) => { // verifies the input before proceeding to registration
             regData = resRegData;
@@ -47,7 +49,7 @@ var processRegistration = ( registrationBody ) => { // function for handling app
                 order  : order.sched_taken,
                 slots : order.sched_slots
             }
-            return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , orderData.order , regData.clientReason , regData.contactNumber ); // TODO: change msgParse[1] to secured input once check feature complete
+            return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , orderData.order , regData.clientReason , regData.contactNumber , regData.clientCode ); // TODO: change msgParse[1] to secured input once check feature complete
         }).then((queryRes) => { // send signal to server to send registration success message
             const parseTime = targetSched.sched_time.split('-');
             var timeComp = [];
@@ -63,7 +65,7 @@ var processRegistration = ( registrationBody ) => { // function for handling app
                     type : 'SEND',
                     flag : 'S',
                     number : regData.contactNumber,
-                    message : `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|ABCD|${orderData.order}/${orderData.slots}` // send the client's appointment date, time, code and position in the queue
+                    message : `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|${regData.clientCode}|${orderData.order}/${orderData.slots}` // send the client's appointment date, time, code and position in the queue
                 }
             });
             return queryRes;

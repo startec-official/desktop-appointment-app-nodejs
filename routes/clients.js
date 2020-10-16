@@ -12,6 +12,7 @@ const ox = require('../utils/queue-manager'); // module for handling queue proce
         time : string;
         order : number;
         contactNumber : string;
+        code : string;
         reason? : string;
 
     client (and resched_client) table schema (backend):
@@ -22,6 +23,7 @@ const ox = require('../utils/queue-manager'); // module for handling queue proce
         client_order - the position of the client in the queue
         client_reason - the optional provided reason by client, can also contain the PRIORITY flag
         client_number - client's contact number
+        client_code - client's auto-generated code
 */
 
 clientsRouter.use(function (req, res, next) {  // define the headers the router uses
@@ -93,7 +95,7 @@ clientsRouter.post( '/transfer/:newDate/:newTime' , (req,res) => { // write to t
         var schedData = [];
         for( let index = 0 ; index < req.body.length ; index ++ ) { 
             const newClientOrder = parseInt(lastClientOrder) + index + 1; // set the starting client order for the array of clients
-            schedData.push( [ req.body[index].userId , req.body[index].name , newDate , newTime , newClientOrder , req.body[index].reason , req.body[index].contactNumber ] ); // get the bulk of the data of the client to move from the JSON body sent by the client and push into a local variable array
+            schedData.push( [ req.body[index].userId , req.body[index].name , newDate , newTime , newClientOrder , req.body[index].reason , req.body[index].contactNumber, req.body[index].code ] ); // get the bulk of the data of the client to move from the JSON body sent by the client and push into a local variable array
         }
         // query string construction for easier readability
         const query = `
@@ -104,10 +106,11 @@ clientsRouter.post( '/transfer/:newDate/:newTime' , (req,res) => { // write to t
                 client_time,
                 client_order,
                 client_reason,
-                client_number
+                client_number,
+                client_code
             )
             VALUES ?
-        `;
+        `;  
         connection.query( query , [schedData] , (err,rows,fields) => {
             if( err ) throw err;
             res.sendStatus(200);
@@ -122,7 +125,7 @@ clientsRouter.post( '/resched/transfer' , (req,res) => { // write to the resched
     var schedData = [];
     for( let index = 0 ; index < req.body.length ; index ++ ) {
         const bodyDate = moment(req.body[index].date).format('MM/DD/YYYY');
-        schedData.push( [ req.body[index].userId , req.body[index].name , bodyDate , req.body[index].time , req.body[index].order , req.body[index].reason , req.body[index].contactNumber ] );
+        schedData.push( [ req.body[index].userId , req.body[index].name , bodyDate , req.body[index].time , req.body[index].order , req.body[index].reason , req.body[index].contactNumber , req.body[index].code ] );
     }
     const query = `
         INSERT INTO reschedule_clients (
@@ -132,7 +135,8 @@ clientsRouter.post( '/resched/transfer' , (req,res) => { // write to the resched
             client_time,
             client_order,
             client_reason,
-            client_number
+            client_number,
+            client_code
         )
         VALUES ?
     `;
@@ -145,8 +149,10 @@ clientsRouter.post( '/resched/transfer' , (req,res) => { // write to the resched
 clientsRouter.delete( '/resched/remove/:array' , (req,res,next) => { // remove a set of specified client from the reschedule clients array
     const input = req.params.array.split(',');
     const idArray = input.map( (id) => parseInt(id,10) );
+    console.log(`ids to remove: ${idArray}`);
     connection.query( 'DELETE FROM reschedule_clients WHERE client_id IN ?' , [[idArray]] , (err , rows , fields) => {
         if( err ) throw err;
+        console.log(res);
         res.sendStatus(200);
     });
 });
@@ -190,6 +196,7 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
                 message : `${date}|${timeString}|${codes[index]}` // send the date, time and codes to the arduino to construct the message
             }
         });
+        res.sendStatus(200);
     }
 });
 
@@ -219,6 +226,7 @@ clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> { // 
                 message : ''
             }
         });
+        res.sendStatus(200);
     });
 });
 // TODO: allow text querying for available days

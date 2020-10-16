@@ -66,8 +66,11 @@ scheduleRouter.post( '/changeslot/:schedDate/:schedTime/:increment' , (req,res) 
     const date = moment(req.params.schedDate).format('MMMM Do YYYY, dddd'); // convert retrieved date passed as parameter and convert into format that matches the table
     const time = req.params.schedTime;
     const increment = parseInt(req.params.increment); // varaible that holds by how much the number of slots should change
+    console.log(`increment: ${increment}`);
+    console.log(`date: ${date} & time: ${time}`);
     connection.query(`UPDATE schedule SET sched_taken = sched_taken + ${increment} WHERE sched_date = '${date}' AND sched_time = '${time}'` , date , (err,rows,fields) => {
         if(err) throw err; // TODO: error handling
+        console.log(`message sent succesfully...`);
         res.sendStatus(200);
     });
 });

@@ -32,6 +32,7 @@ var serialFlag = require('../utils/global-event-emitter'); // a global flag for 
     X - case for permanently cancelling appointment, ask client to register again
     S - case for successful appoitnment registration, send the client appointment details
     R - case for rescheduling successful, send the client new appointment details
+    C - case for sending custom message
 */
 module.exports = function( data ) { // retrieves data from the arduino and starts processes based on text header
   var errors = [];
