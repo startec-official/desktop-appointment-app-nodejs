@@ -157,6 +157,7 @@ clientsRouter.delete( '/resched/remove/:array' , (req,res,next) => { // remove a
     });
 });
 
+// TODO: fix issue with sending text messages, message gets truncated, possibly move all data to json body instead
 clientsRouter.post( '/sendmessage/custom/:contacts' , (req,res) => { // send custom message to specified contacts
     const customMessage = req.body.customMessage;
     const contactNos = req.params.contacts.split(',');

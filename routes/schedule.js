@@ -103,7 +103,7 @@ scheduleRouter.get( '/select/open' , (req,res) => { // selects the date, time, n
         res.json( rows );
     });
 });
-
+// TODO: fix issue with reschedule not leaving slots, probably check if process still running in client-side as well
 scheduleRouter.get('/getresched', (req,res) => { // get all data from the reschedule clients table
     const query = 'SELECT * FROM reschedule_clients';
     connection.query( query , ( err , rows , fields )=>{
