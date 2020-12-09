@@ -1,5 +1,6 @@
 var dotenv = require('dotenv'); // module for accessing the environment file
 var express = require('express'); // an API (called REST API) that allows servers to handle HTTP requests
+var cors = require('cors');
 var bodyParser = require('body-parser'); // module for parsing data from HTTP requests
 const scheduleRouterExp = require('./routes/schedule'); // route file for schedules route
 const clientsRouterExp = require('./routes/clients'); // route file for clients route
@@ -17,6 +18,8 @@ var app = express(); // initializes express
 // asks express to use a JSON body parser for incoming data
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+// use CORS to allow cross-origin requests
+app.use(cors());
 // defines the router files to use for specific routes
 app.use('/schedule',scheduleRouterExp); // use this route file for schedule routes
 app.use('/clients',clientsRouterExp); // use this route file for client routes

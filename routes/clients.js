@@ -4,6 +4,9 @@ var connection = require('../connections/mysql-connection'); // module that allo
 var moment = require('moment'); // handly module for working with dates and times
 const ox = require('../utils/queue-manager'); // module for handling queue processes
 
+// debug only
+var port = require('../connections/serial-connection');
+
 /* 
     Client object schema (for client-side code):
         userId : number;
@@ -229,6 +232,20 @@ clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> { // 
         });
         res.sendStatus(200);
     });
+});
+
+// debug
+clientsRouter.post('/test' , (req,res) => {
+    // console.log( 'great!' );
+    // res.sendStatus(200);
+    port.write( 'AT' , (err) => {
+        if( err )
+            throw err;
+        else {
+            console.log('wrote AT!!');
+            res.sendStatus(200);
+        }
+    }); 
 });
 // TODO: allow text querying for available days
 
