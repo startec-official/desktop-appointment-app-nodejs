@@ -148,8 +148,37 @@ var writeToClientsTablePromise = ( clientName , clientDate, clientTime , clientO
     });
 }
 
+var getSendToQueuePromise = (targetSched , regData , orderData ) => {
+    return new Promise( (resolve , reject) => {
+        try {
+            const parseTime = targetSched.sched_time.split('-');
+            var timeComp = [];
+            parseTime.forEach((time)=>{ // parse the time
+                const hour = parseInt(time.split(':')[0]);
+                const minute = time.split(':')[1];
+                timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`);  // convert time to AM-PM convention
+            });
+            const timeString = `${timeComp[0]} to ${timeComp[1]}`;
+            console.log(`timeString: ${timeString}`);
+            sendQueue.addJob({ // send registration successful message to queue
+                body : { // adds a send job to the main server queue, details provided in queue-process.js
+                    type : 'SEND',
+                    flag : 'S',
+                    number : regData.contactNumber,
+                    message : `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|${regData.clientCode}|${orderData.order}/${orderData.slots}` // send the client's appointment date, time, code and position in the queue
+                }
+            });
+            resolve( { status : 'OK' , message : 'registration job successfully added to queue...' } );
+        }
+        catch(e) {
+            reject( { error : 'AddToQueueError' , message : 'there was an error adding job to queue...' } ); // TODO: error handling
+        }
+    });
+}
+
 module.exports.verifyInputPromise = verifyInputPromise;
 module.exports.getAvailableSchedulesPromise = getAvailableSchedulesPromise;
 module.exports.writeToSchedulePromise = writeToSchedulePromise;
 module.exports.getClientOrderPromise = getClientOrderPromise;
+module.exports.sendToQueuePromise = getSendToQueuePromise;
 module.exports.writeToClientsTablePromise = writeToClientsTablePromise;

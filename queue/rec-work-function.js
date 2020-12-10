@@ -1,6 +1,5 @@
 const applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 const serverWorker = require('../workers/server-workers'); // module that handles internal server processes
-const sendQueue = require('./send-queue-manager'); // module for handling send queue processes
 
 var work_fn = async function (job_body) { // function containing bulk of the code for the queue process
     var promise = new Promise(function(resolve, reject) {
@@ -43,24 +42,7 @@ var processRegistration = ( registrationBody ) => { // function for handling app
             }
             return serverWorker.writeToClientsTablePromise( regData.clientName , regData.dateFromMsg.format('MM/DD/YYYY') , targetSched.sched_time , orderData.order , regData.clientReason , regData.contactNumber , regData.clientCode ); // TODO: change msgParse[1] to secured input once check feature complete
         }).then((queryRes) => { // send signal to server to send registration success message
-            const parseTime = targetSched.sched_time.split('-');
-            var timeComp = [];
-            parseTime.forEach((time)=>{ // parse the time
-                const hour = parseInt(time.split(':')[0]);
-                const minute = time.split(':')[1];
-                timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`);  // convert time to AM-PM convention
-            });
-            const timeString = `${timeComp[0]} to ${timeComp[1]}`;
-            console.log(`timeString: ${timeString}`);
-            sendQueue.addJob({ // send registration successful message to queue
-                body : { // adds a send job to the main server queue, details provided in queue-process.js
-                    type : 'SEND',
-                    flag : 'S',
-                    number : regData.contactNumber,
-                    message : `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|${regData.clientCode}|${orderData.order}/${orderData.slots}` // send the client's appointment date, time, code and position in the queue
-                }
-            });
-            return queryRes;
+            return serverWorker.sendToQueuePromise( targetSched , regData , orderData );
         }).then( ( queryRes ) => {
             applog.log( queryRes.message );
             topRes( queryRes );

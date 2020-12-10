@@ -53,7 +53,7 @@ module.exports = function( data ) { // retrieves data from the arduino and start
           sendQueue.process({
             work_fn : sendWorkFn.work_fn, // define the function to run for the process
             concurrency : 1, // number of processes to run simultaneously, 1 means executing queue processes them one by one
-            timeout : 10000 // number of seconds before a queue process is aborted and considered failed
+            timeout : 300 // number of seconds before a queue process is aborted and considered failed
           });
           break;
         case 'F': // when the device fails

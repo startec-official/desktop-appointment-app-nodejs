@@ -29,6 +29,7 @@ const applog = require('../utils/debug-log'); // custom log module that can be s
     R - case for rescheduling successful, send the client new appointment details
     C - case for sending custom message
 */
+// FIXME : queue not responding correctly
 module.exports = function( data ) { // retrieves data from the arduino and starts processes based on text header
   var errors = [];
   const key = data;
@@ -51,8 +52,8 @@ module.exports = function( data ) { // retrieves data from the arduino and start
           // start queue manager
           recQueue.process({
             work_fn : recWorkFn.work_fn, // define the function to run for the process
-            concurrency : 10, // number of processes to run simultaneously, 1 means executing queue processes them one by one
-            timeout : 30 // number of seconds before a queue process is aborted and considered failed
+            concurrency : 1, // number of processes to run simultaneously, 1 means executing queue processes them one by one
+            timeout : 60 // number of seconds before a queue process is aborted and considered failed
             // TODO: handle server timeout
           });
         case 'F': // when the device fails
