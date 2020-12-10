@@ -1,7 +1,6 @@
 const applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 const serverWorker = require('../workers/server-workers'); // module that handles internal server processes
-const serialWorker = require('../workers/serial-workers'); // module that handles interactions with the device via serial
-const ox = require('../utils/queue-manager'); // module for managing queue processes
+const sendQueue = require('./send-queue-manager'); // module for handling send queue processes
 
 var work_fn = async function (job_body) { // function containing bulk of the code for the queue process
     var promise = new Promise(function(resolve, reject) {
@@ -12,13 +11,6 @@ var work_fn = async function (job_body) { // function containing bulk of the cod
                 }).catch( ( errors ) => {
                     reject( errors );
                 }); // TODO: add unique ID generation feature, and table column
-                break;
-            case 'SEND': // TODO: send function for success and failure // for sending a message to client
-                sendMessage( job_body ).then( (queryRes) => {
-                    resolve(queryRes);
-                }).catch((errors)=>{
-                    reject( errors );
-                });
                 break;
             default:
                 // TODO: throw error
@@ -60,7 +52,7 @@ var processRegistration = ( registrationBody ) => { // function for handling app
             });
             const timeString = `${timeComp[0]} to ${timeComp[1]}`;
             console.log(`timeString: ${timeString}`);
-            ox.addJob({ // send registration successful message to queue
+            sendQueue.addJob({ // send registration successful message to queue
                 body : { // adds a send job to the main server queue, details provided in queue-process.js
                     type : 'SEND',
                     flag : 'S',
@@ -76,22 +68,6 @@ var processRegistration = ( registrationBody ) => { // function for handling app
             errors.push( err ); // TODO: error handling
             applog.log( errors );
             topRej( errors );
-        });
-    });
-}
-
-var sendMessage = ( sendBody ) => {
-    return new Promise((topRes,topRej)=> {
-        var errors = [];
-        // TODO: If flag not resolved, reject the queue entry, replace
-
-        serialWorker.sendMessage( sendBody ).then( (queryRes) => {
-            applog.log( queryRes.message );
-            topRes( queryRes );
-        }).catch( (err) => {
-            errors.push( err );
-            applog.log( errors );
-            topRej(errors);
         });
     });
 }

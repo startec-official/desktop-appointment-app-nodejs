@@ -1,7 +1,7 @@
-const ox = require('../utils/queue-manager'); // module that handles queue processes
-const workFn = require('./work-function'); // module that contains the main body of queue process definitions
+const recQueue = require('./rec-queue-manager'); // module that handles queue processes
+const sendQueue = require('./send-queue-manager'); // module that handles queue processes
+var recWorkFn = require('./rec-work-function'); // module that contains the main body of queue process definitions
 const applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
-var serialFlag = require('../utils/global-event-emitter'); // a global flag for cross-file event firing and listening
 /*
   Serial header flag combinations: // to save memory, actions from the server are triggered by certain character headers from the device
   IB - Initialize Begin
@@ -12,11 +12,6 @@ var serialFlag = require('../utils/global-event-emitter'); // a global flag for 
   RR - Registrant Registration
   RC - Registrant Cancel
   RHELP* - Registrant HELP
-
-  SS - Send Success
-  SI - Send Initiated
-  SW - Send Waiting
-  SF - Send Failure
 
   Queue job flag combinations: // Jobs are also given flags for standardization, the types of jobs and flags used are shown below
   REQUEST:
@@ -42,24 +37,24 @@ module.exports = function( data ) { // retrieves data from the arduino and start
     case 'I': // when the device initializes
       switch( key[1] ) { // determines follow up action based on second character
         case 'B': // when the device starts up
-          applog.log('device starting up...');
+          applog.log('reciever device starting up...');
           break;
         case 'W': // when the device is waiting for response from the GSM
-          applog.log( 'waiting for device response...' );
+          applog.log( 'waiting reciever for device response...' );
           initAttempts ++;
           if( initAttempts > 3 ) { // abort boot and send message to system if there is no response
             // TODO: send message to system, abort boot
           }
           break;
-        case 'S': // device started succesffuly
-          applog.log( "the device started sucessfully! Queue started..." );
+        case 'S': // device started succesffuly // TODO : get input from other device for this feature
+          applog.log( "the reciever device started sucessfully! Recieve Queue started..." );
           // start queue manager
-          ox.process({
-            work_fn : workFn.work_fn, // define the function to run for the process
-            concurrency : 1, // number of processes to run simultaneously, 1 means executing queue processes them one by one
-            timeout : 20 // number of seconds before a queue process is aborted and considered failed
+          recQueue.process({
+            work_fn : recWorkFn.work_fn, // define the function to run for the process
+            concurrency : 10, // number of processes to run simultaneously, 1 means executing queue processes them one by one
+            timeout : 30 // number of seconds before a queue process is aborted and considered failed
+            // TODO: handle server timeout
           });
-          break;
         case 'F': // when the device fails
           // TODO: error handling
           break;
@@ -69,7 +64,7 @@ module.exports = function( data ) { // retrieves data from the arduino and start
     case 'R': // text from a registratant is recieved
       if( data.split(';')[2] == 'HELP' ) { // check for the HELP keyword and send appropriate text
         const contactNo = data.substring(2,data.length).split(';')[0]; // retrieve contact number for sending HELP message
-        ox.addJob({
+        sendQueue.addJob({
           body : { // send a job server queue, explained above
             type : 'SEND',
             flag : 'H',
@@ -81,13 +76,13 @@ module.exports = function( data ) { // retrieves data from the arduino and start
       } 
       switch( key[1] ) { // determines follow up action based on second character
         case 'R' : // appointment registration recieved
-          if( data.split(';').length < 3 ) { // check if the serial output is in the proper format
+          if( data.split(';').length < 3 ) { // check if the serial output is in the proper format // TODO: move to separate file
             errors.push( { type : 'ForbiddenCharError' , message : 'delimiter character frequency mismatch...' } );
           } else if( 1 > 5 ) {
             // TODO: protect against regex by using <special module>
           } else {
             var parsedMsg = data.substring(2,data.length).split(';'); // retrieves registration body from text
-            ox.addJob( { // adds the REGISTRATION task to queue
+            recQueue.addJob( { // adds the REGISTRATION task to queue
               body : {
                 type : 'REQUEST',
                 number : parsedMsg[0],
@@ -100,26 +95,6 @@ module.exports = function( data ) { // retrieves data from the arduino and start
         case 'C':
           // TODO: handle cancel messages
           break;
-      }
-      break;
-    case 'S': // refers to sending messages
-      switch( key[1] ) {
-        case 'S': // message was successfully sent
-          applog.log( "message was successfully sent..." );
-          serialFlag.emit( 'messageSent' , 'you managed to do it!' );
-          break;
-        case 'I': // GSM started sending message
-          applog.log( 'warming up SIM send...' );
-          break;
-        case 'W': // device is waiting for the message to send
-          applog.log( 'waiting for send...' );
-          break;
-        case 'F': // message sending failed, but most of the time it is still successfull though
-          serialFlag.emit( 'messageSent' , 'you managed to do it!' );
-          // TODO: send the message back to queue to retry, add occurence count
-          break;
-        default:
-          errors.push( { type : 'BadPollingError' , message : 'command not recognized. please check input...' } );
       }
       break;
     default: // when there are no headers present

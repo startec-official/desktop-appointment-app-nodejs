@@ -1,5 +1,5 @@
 var express = require('express'); // an API (called REST API) that allows servers to handle HTTP requests
-var ox = require('../utils/queue-manager'); // module for handling queue processes
+var sendQueue = require('../queue/send-queue-manager'); // module for handling queue processes
 var scheduleRouter = express.Router() // start the express service
 var connection = require('../connections/mysql-connection'); // // module that allows connecting to a mysql database
 var applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
@@ -115,7 +115,7 @@ scheduleRouter.get('/getresched', (req,res) => { // get all data from the resche
 scheduleRouter.post( '/testWrite' , (req,res) => { // debug route
     const message = `${req.body.message}`;
     const phoneNo = `${req.body.number}`;
-    ox.addJob({
+    sendQueue.addJob({
         body : {
             type: 'SEND',
             number : phoneNo,

@@ -2,10 +2,7 @@ var express = require('express'); // an API (called REST API) that allows server
 var clientsRouter = express.Router(); // start the express service
 var connection = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
 var moment = require('moment'); // handly module for working with dates and times
-const ox = require('../utils/queue-manager'); // module for handling queue processes
-
-// debug only
-var port = require('../connections/serial-connection');
+const sendQueue = require('../queue/send-queue-manager'); // module for handling queue processes
 
 /* 
     Client object schema (for client-side code):
@@ -165,7 +162,7 @@ clientsRouter.post( '/sendmessage/custom/:contacts' , (req,res) => { // send cus
     const customMessage = req.body.customMessage;
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach( (contact) => {
-        ox.addJob({
+        sendQueue.addJob({
             body : { // adds a send job to the main server queue, details provided in queue-process.js
                 type : 'SEND',
                 flag : 'C',
@@ -192,7 +189,7 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
             timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`); // changes 24-hour format to common AM-PM time convention
         });
         const timeString = `${timeComp[0]} to ${timeComp[1]}`; // saves the time to be displayed
-        ox.addJob({
+        sendQueue.addJob({
             body : { // sends a job to the main server queue, details in queue-process.js
                 type : 'SEND',
                 flag : 'R',
@@ -207,7 +204,7 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
 clientsRouter.post('/sendmessage/reschedule/cancel/:contacts',(req,res)=>{ // sends a message to clients whose appointments have been permanently cancelled
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach((contact)=>{
-        ox.addJob({ // sends a job to the main server queue, details in queue-process.js
+        sendQueue.addJob({ // sends a job to the main server queue, details in queue-process.js
             body : {
                 type : 'SEND',
                 flag : 'X',
@@ -222,7 +219,7 @@ clientsRouter.post('/sendmessage/reschedule/cancel/:contacts',(req,res)=>{ // se
 clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> { // sends message to clients who have been 'canceled' and moved into the reschedule table
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach((contact)=>{
-        ox.addJob({ // sends a job to the main server queue, details in queue-process.js
+        sendQueue.addJob({ // sends a job to the main server queue, details in queue-process.js
             body : {
                 type : 'SEND',
                 flag : 'M',
@@ -234,19 +231,6 @@ clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> { // 
     });
 });
 
-// debug
-clientsRouter.post('/test' , (req,res) => {
-    // console.log( 'great!' );
-    // res.sendStatus(200);
-    port.write( 'AT' , (err) => {
-        if( err )
-            throw err;
-        else {
-            console.log('wrote AT!!');
-            res.sendStatus(200);
-        }
-    }); 
-});
 // TODO: allow text querying for available days
 
 module.exports = clientsRouter;

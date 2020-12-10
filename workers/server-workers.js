@@ -1,6 +1,6 @@
 const conn = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
 const moment = require('moment'); // handly module for working with dates and times
-const ox = require('../utils/queue-manager'); // module for handling queue processes
+const sendQueue = require('../queue/send-queue-manager'); // module for handling send queue processes
 const crypto = require('../utils/crypto'); // module for generating random string
 
 // TODO: place all query requests into one file
@@ -46,7 +46,7 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
 
         if( errors.length > 0 ) { // signal errors when present in the array
             if( errors.filter((error) => error.type === 'ParseError').length > 0 ) {
-                ox.addJob({
+                sendQueue.addJob({
                     body : { // send a wrong format message, adds a send job to the main server queue, details provided in queue-process.js
                         type : 'SEND',
                         flag : 'P',
@@ -56,7 +56,7 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
                 });
             }
             if( errors.filter((error) => error.type === 'TimingError').length > 0 ) {
-                ox.addJob({
+                sendQueue.addJob({
                     body : { // send a timing error message, adds a send job to the main server queue, details provided in queue-process.js
                         type : 'SEND',
                         flag : 'T',
@@ -94,7 +94,7 @@ var getAvailableSchedulesPromise = ( contactNo , targetDate ) => { // polls db t
         conn.query( query, targetDate , (err,rows,fields) => {
             if( err ) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } );
             if( rows.length == 0 ) {
-                ox.addJob( {
+                sendQueue.addJob( {
                     body: {// send an error message, adds a send job to the main server queue, details provided in queue-process.js
                         type : 'SEND',
                         flag : 'F',
