@@ -38,17 +38,17 @@ module.exports = function( data ) { // retrieves data from the arduino and start
     case 'I': // when the device initializes
       switch( key[1] ) { // determines follow up action based on second character
         case 'B': // when the device starts up
-          applog.log('device starting up...');
+          applog.log('sender device starting up...');
           break;
         case 'W': // when the device is waiting for response from the GSM
-          applog.log( 'waiting for device response...' );
+          applog.log( 'waiting for sender device response...' );
           initAttempts ++;
           if( initAttempts > 3 ) { // abort boot and send message to system if there is no response
             // TODO: send message to system, abort boot
           }
           break;
         case 'S': // device started succesffuly
-          applog.log( "the device started sucessfully! Send queue started..." );
+          applog.log( "the sender device started sucessfully! Send queue started..." );
           // start queue manager
           sendQueue.process({
             work_fn : sendWorkFn.work_fn, // define the function to run for the process

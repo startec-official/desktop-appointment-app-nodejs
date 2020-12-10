@@ -72,7 +72,7 @@ module.exports = function( data ) { // retrieves data from the arduino and start
             message : ''
           }
         });
-        break;
+        // do not break here!
       } 
       switch( key[1] ) { // determines follow up action based on second character
         case 'R' : // appointment registration recieved
@@ -82,12 +82,13 @@ module.exports = function( data ) { // retrieves data from the arduino and start
             // TODO: protect against regex by using <special module>
           } else {
             var parsedMsg = data.substring(2,data.length).split(';'); // retrieves registration body from text
+            applog.log("Message recieved in the queue process!!!");
             recQueue.addJob( { // adds the REGISTRATION task to queue
               body : {
                 type : 'REQUEST',
                 number : parsedMsg[0],
                 date : parsedMsg[1],
-                message : parsedMsg[2]
+                message : parsedMsg[2].trim()
               }
             });
           }

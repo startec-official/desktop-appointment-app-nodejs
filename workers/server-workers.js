@@ -10,14 +10,21 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
         // init array of errors
         var errors = [];
         // get message received params
+        
         var dateRec = moment( registrationBody.date.split('+')[0].split(',')[0] , 'YY/MM/DD' ,true); // TODO: set deadline time for registration
         var contactNo = registrationBody.number;
+        console.log(`dateRec: ${dateRec}`);
+        console.log(`contanctNo: ${contactNo}`);
         // get message info
         try {
             var msgParse = registrationBody.message.split('-'); // split string based on the defined delimiter
+            console.log(`Registration body message: ${registrationBody.message}`); 
+            console.log("new tomorrow!");
             msgParse.forEach( (msgPart) => msgPart = msgPart.trim() ); // remove whitespace in between dashes
             msgParse[0] = msgParse[0].toUpperCase(); // set the first part of the message (name) to ALL CAPS
             msgParse[1] = msgParse[1].replace(/ +/g, ""); // remove all whitespace from the date input to concur to format
+            console.log( `parsed Message pt 1: ${msgParse[0]}` );
+            console.log( `parsed Message pt 2: ${msgParse[1]}` );
         } catch( e ) {
             errors.push( { type : 'ParseError' , message : 'Error parsing text message...' } ); // push the error message to the array of errors
         }

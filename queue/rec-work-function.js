@@ -25,9 +25,9 @@ var processRegistration = ( registrationBody ) => { // function for handling app
         var targetSched; // holds the target schedule information
         var orderData; // holds retrieved position of client in queue
         var errors = []; // holds errors encountered by function
-        // TODO: secure table polling against cross-site scripting
+            
         serverWorker.verifyInputPromise( registrationBody ).then( (resRegData) => { // verifies the input before proceeding to registration
-            regData = resRegData;
+            regData = resRegData;        // TODO: secure table polling against cross-site scripting
             return serverWorker.getAvailableSchedulesPromise( regData.contactNumber , regData.dateFromMsgFrmtd );
             // TODO: add guard for repeated number and appointment date
         }).then( ( resTargetSched ) => { // writes the data to the schedule
