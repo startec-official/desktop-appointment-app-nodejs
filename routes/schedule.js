@@ -4,7 +4,7 @@ var scheduleRouter = express.Router() // start the express service
 var connection = require('../connections/mysql-connection'); // // module that allows connecting to a mysql database
 var applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 var moment = require('moment'); // handly module for working with dates and times
-
+var errors = [];
 /*
     schedule table schema:
         sched_date - contains date of the appointment in 'Month day, Year, dayOfWeek' format
@@ -48,8 +48,6 @@ scheduleRouter.post('/overwriteSaveTo',(req,res) => { // saves input schedule to
             `;
             connection.query(saveQuery, [schedData], (err, rows, fields) => {
             if (err) throw err; // TODO: error handling
-            applog.log("Connected to mySQL Server! The query finished with the following response:");
-            applog.log( rows );
             res.sendStatus(200); // sends the OK status signalling successful completion 
             });
         }
@@ -66,11 +64,8 @@ scheduleRouter.post( '/changeslot/:schedDate/:schedTime/:increment' , (req,res) 
     const date = moment(req.params.schedDate).format('MMMM Do YYYY, dddd'); // convert retrieved date passed as parameter and convert into format that matches the table
     const time = req.params.schedTime;
     const increment = parseInt(req.params.increment); // varaible that holds by how much the number of slots should change
-    console.log(`increment: ${increment}`);
-    console.log(`date: ${date} & time: ${time}`);
     connection.query(`UPDATE schedule SET sched_taken = sched_taken + ${increment} WHERE sched_date = '${date}' AND sched_time = '${time}'` , date , (err,rows,fields) => {
         if(err) throw err; // TODO: error handling
-        console.log(`message sent succesfully...`);
         res.sendStatus(200);
     });
 });

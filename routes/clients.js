@@ -2,8 +2,8 @@ var express = require('express'); // an API (called REST API) that allows server
 var clientsRouter = express.Router(); // start the express service
 var connection = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
 var moment = require('moment'); // handly module for working with dates and times
-const sendQueue = require('../queue/send-queue-manager'); // module for handling queue processes
-
+var queueWorker = require('../workers/queue-workers');
+var errors = []; // TODO: create standard for processing error messages
 /* 
     Client object schema (for client-side code):
         userId : number;
@@ -162,14 +162,9 @@ clientsRouter.post( '/sendmessage/custom/:contacts' , (req,res) => { // send cus
     const customMessage = req.body.customMessage;
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach( (contact) => {
-        sendQueue.addJob({
-            body : { // adds a send job to the main server queue, details provided in queue-process.js
-                type : 'SEND',
-                flag : 'C',
-                number : contact,
-                message : customMessage
-            }
-        });
+        queueWorker.sendPredefinedMessage( 'SEND' , 'C' , contact , customMessage ).then( 
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
     });
     res.sendStatus(200);
 });
@@ -179,7 +174,6 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
     const time = req.body.time;
     const contactNos = req.params.contacts.split(',');
     const codes = req.body.codes;
-    console.log( codes );
     for (let index = 0; index < contactNos.length; index++) {
         const parseTime = time.split('-'); // separates the time range into two separate time strings
         var timeComp = [];
@@ -189,14 +183,10 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
             timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`); // changes 24-hour format to common AM-PM time convention
         });
         const timeString = `${timeComp[0]} to ${timeComp[1]}`; // saves the time to be displayed
-        sendQueue.addJob({
-            body : { // sends a job to the main server queue, details in queue-process.js
-                type : 'SEND',
-                flag : 'R',
-                number : contactNos[index],
-                message : `${date}|${timeString}|${codes[index]}` // send the date, time and codes to the arduino to construct the message
-            }
-        });
+        var constructedBodyString = `${date}|${timeString}|${codes[index]}`; // send the date, time and codes to the arduino to construct the message
+        queueWorker.sendPredefinedMessage( 'SEND' , 'R' , contactNos[index] , constructedBodyString ).then( 
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
         res.sendStatus(200);
     }
 });
@@ -204,14 +194,9 @@ clientsRouter.post( '/sendmessage/reschedule/complete/:contacts' , (req,res) => 
 clientsRouter.post('/sendmessage/reschedule/cancel/:contacts',(req,res)=>{ // sends a message to clients whose appointments have been permanently cancelled
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach((contact)=>{
-        sendQueue.addJob({ // sends a job to the main server queue, details in queue-process.js
-            body : {
-                type : 'SEND',
-                flag : 'X',
-                number : contact,
-                message : ''
-            }
-        });
+        queueWorker.sendPredefinedMessage( 'SEND' , 'X' , contact , '' ).then( 
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
     });
     res.sendStatus(200);
 });
@@ -219,14 +204,9 @@ clientsRouter.post('/sendmessage/reschedule/cancel/:contacts',(req,res)=>{ // se
 clientsRouter.post('/sendmessage/reschedule/moved/:contacts' , (req,res)=> { // sends message to clients who have been 'canceled' and moved into the reschedule table
     const contactNos = req.params.contacts.split(',');
     contactNos.forEach((contact)=>{
-        sendQueue.addJob({ // sends a job to the main server queue, details in queue-process.js
-            body : {
-                type : 'SEND',
-                flag : 'M',
-                number : contact,
-                message : ''
-            }
-        });
+        queueWorker.sendPredefinedMessage( 'SEND' , 'M' , contact , '' ).then( 
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
         res.sendStatus(200);
     });
 });

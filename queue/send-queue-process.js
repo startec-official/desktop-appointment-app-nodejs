@@ -1,6 +1,5 @@
-const sendQueue = require('./send-queue-manager'); // module that handles queue processes
-var sendWorkFn = require('./send-work-function'); // module that contains the main body of queue process definitionsons
-const applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
+var queueWorker = require('../workers/queue-workers');
+var applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 var serialFlag = require('../utils/global-event-emitter'); // a global flag for cross-file event firing and listening
 /*
   Serial header flag combinations: // to save memory, actions from the server are triggered by certain character headers from the device
@@ -38,23 +37,20 @@ module.exports = function( data ) { // retrieves data from the arduino and start
     case 'I': // when the device initializes
       switch( key[1] ) { // determines follow up action based on second character
         case 'B': // when the device starts up
-          applog.log('sender device starting up...');
+          applog.log('STARTING UP Sender Device...');
           break;
         case 'W': // when the device is waiting for response from the GSM
-          applog.log( 'waiting for sender device response...' );
+          applog.log( 'WAITING FOR RESPONSE Sender Device...' );
           initAttempts ++;
           if( initAttempts > 3 ) { // abort boot and send message to system if there is no response
             // TODO: send message to system, abort boot
           }
           break;
         case 'S': // device started succesffuly
-          applog.log( "the sender device started sucessfully! Send queue started..." );
           // start queue manager
-          sendQueue.process({
-            work_fn : sendWorkFn.work_fn, // define the function to run for the process
-            concurrency : 1, // number of processes to run simultaneously, 1 means executing queue processes them one by one
-            timeout : 300 // number of seconds before a queue process is aborted and considered failed
-          });
+          queueWorker.startSendQueue(1,300).then( 
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
           break;
         case 'F': // when the device fails
           // TODO: error handling
@@ -69,10 +65,10 @@ module.exports = function( data ) { // retrieves data from the arduino and start
           serialFlag.emit( 'messageSent' , 'you managed to do it!' );
           break;
         case 'I': // GSM started sending message
-          applog.log( 'warming up SIM send...' );
+          applog.log( 'INIT SIM SEND...' );
           break;
         case 'W': // device is waiting for the message to send
-          applog.log( 'waiting for send...' );
+          applog.log( 'WAITING FOR SEND...' );
           break;
         case 'F': // message sending failed, but most of the time it is still successfull though
           serialFlag.emit( 'messageFailed' , 'message send failed, reporting to admin...' ); // TODO : handle failed sends

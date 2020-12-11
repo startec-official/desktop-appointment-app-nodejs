@@ -1,7 +1,7 @@
-const conn = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
-const moment = require('moment'); // handly module for working with dates and times
-const sendQueue = require('../queue/send-queue-manager'); // module for handling send queue processes
-const crypto = require('../utils/crypto'); // module for generating random string
+var conn = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
+var moment = require('moment'); // handly module for working with dates and times
+var queueWorker = require('../workers/queue-workers'); // module containing functions for handling queue operations
+var crypto = require('../utils/crypto'); // module for generating random string
 
 // TODO: place all query requests into one file
 
@@ -13,18 +13,12 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
         
         var dateRec = moment( registrationBody.date.split('+')[0].split(',')[0] , 'YY/MM/DD' ,true); // TODO: set deadline time for registration
         var contactNo = registrationBody.number;
-        console.log(`dateRec: ${dateRec}`);
-        console.log(`contanctNo: ${contactNo}`);
         // get message info
         try {
             var msgParse = registrationBody.message.split('-'); // split string based on the defined delimiter
-            console.log(`Registration body message: ${registrationBody.message}`); 
-            console.log("new tomorrow!");
             msgParse.forEach( (msgPart) => msgPart = msgPart.trim() ); // remove whitespace in between dashes
             msgParse[0] = msgParse[0].toUpperCase(); // set the first part of the message (name) to ALL CAPS
             msgParse[1] = msgParse[1].replace(/ +/g, ""); // remove all whitespace from the date input to concur to format
-            console.log( `parsed Message pt 1: ${msgParse[0]}` );
-            console.log( `parsed Message pt 2: ${msgParse[1]}` );
         } catch( e ) {
             errors.push( { type : 'ParseError' , message : 'Error parsing text message...' } ); // push the error message to the array of errors
         }
@@ -53,24 +47,14 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
 
         if( errors.length > 0 ) { // signal errors when present in the array
             if( errors.filter((error) => error.type === 'ParseError').length > 0 ) {
-                sendQueue.addJob({
-                    body : { // send a wrong format message, adds a send job to the main server queue, details provided in queue-process.js
-                        type : 'SEND',
-                        flag : 'P',
-                        number : contactNo,
-                        message : ''
-                    }
-                });
+                queueWorker.sendPredefinedMessage( 'SEND' , 'P' , contactNo , '' ).then( // send a wrong format message, adds a send job to the main server queue, details provided in queue-process.js
+                    ( queryStatus ) => applog.log( queryStatus ),
+                    ( errorMessage ) => errors.push( errorMessage ));
             }
             if( errors.filter((error) => error.type === 'TimingError').length > 0 ) {
-                sendQueue.addJob({
-                    body : { // send a timing error message, adds a send job to the main server queue, details provided in queue-process.js
-                        type : 'SEND',
-                        flag : 'T',
-                        number : contactNo,
-                        message : ''
-                    }
-                });
+                queueWorker.sendPredefinedMessage( 'SEND' , 'T' , contactNo , '' ).then( // send a timing error message, adds a send job to the main server queue, details provided in queue-process.js
+                    ( queryStatus ) => applog.log( queryStatus ),
+                    ( errorMessage ) => errors.push( errorMessage ));
             }
             reject( errors );
         }
@@ -101,14 +85,9 @@ var getAvailableSchedulesPromise = ( contactNo , targetDate ) => { // polls db t
         conn.query( query, targetDate , (err,rows,fields) => {
             if( err ) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } );
             if( rows.length == 0 ) {
-                sendQueue.addJob( {
-                    body: {// send an error message, adds a send job to the main server queue, details provided in queue-process.js
-                        type : 'SEND',
-                        flag : 'F',
-                        number : contactNo,
-                        message : ''
-                    }
-                });
+                queueWorker.sendPredefinedMessage( 'SEND' , 'F' , contactNo , '' ).then( 
+                    ( queryStatus ) => applog.log( queryStatus ),
+                    ( errorMessage ) => errors.push( errorMessage ));
                 reject( { type : 'TimingError' , message : 'no available slots for selected date...' } );
             } else {
                 resolve( rows[0] ); // choose topmost result
@@ -159,15 +138,10 @@ var getSendToQueuePromise = (targetSched , regData , orderData ) => {
                 timeComp.push(hour < 12 ? `${hour}:${minute}AM` : `${hour-12}:${minute}PM`);  // convert time to AM-PM convention
             });
             const timeString = `${timeComp[0]} to ${timeComp[1]}`;
-            console.log(`timeString: ${timeString}`);
-            sendQueue.addJob({ // send registration successful message to queue
-                body : { // adds a send job to the main server queue, details provided in queue-process.js
-                    type : 'SEND',
-                    flag : 'S',
-                    number : regData.contactNumber,
-                    message : `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|${regData.clientCode}|${orderData.order}/${orderData.slots}` // send the client's appointment date, time, code and position in the queue
-                }
-            });
+            var constructedRegistrationBody = `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|${regData.clientCode}|${orderData.order}/${orderData.slots}`; // send the client's appointment date, time, code and position in the queue
+            queueWorker.sendPredefinedMessage( 'SEND' , 'S' , regData.contactNo , constructedRegistrationBody ).then( 
+                ( queryStatus ) => applog.log( queryStatus ),
+                ( errorMessage ) => errors.push( errorMessage ));
             resolve( { status : 'OK' , message : 'registration job successfully added to queue...' } );
         }
         catch(e) {

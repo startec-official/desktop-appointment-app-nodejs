@@ -1,7 +1,5 @@
-const recQueue = require('./rec-queue-manager'); // module that handles queue processes
-const sendQueue = require('./send-queue-manager'); // module that handles queue processes
-var recWorkFn = require('./rec-work-function'); // module that contains the main body of queue process definitions
-const applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
+var queueWorker = require('../workers/queue-workers'); // module containing functions for handling queue operations
+var applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 /*
   Serial header flag combinations: // to save memory, actions from the server are triggered by certain character headers from the device
   IB - Initialize Begin
@@ -38,24 +36,19 @@ module.exports = function( data ) { // retrieves data from the arduino and start
     case 'I': // when the device initializes
       switch( key[1] ) { // determines follow up action based on second character
         case 'B': // when the device starts up
-          applog.log('reciever device starting up...');
+          applog.log('STARTING UP Reciever Device...');
           break;
         case 'W': // when the device is waiting for response from the GSM
-          applog.log( 'waiting reciever for device response...' );
+          applog.log( 'WAITING FOR RESPONSE Reciever Device...' );
           initAttempts ++;
           if( initAttempts > 3 ) { // abort boot and send message to system if there is no response
             // TODO: send message to system, abort boot
           }
           break;
-        case 'S': // device started succesffuly // TODO : get input from other device for this feature
-          applog.log( "the reciever device started sucessfully! Recieve Queue started..." );
-          // start queue manager
-          recQueue.process({
-            work_fn : recWorkFn.work_fn, // define the function to run for the process
-            concurrency : 1, // number of processes to run simultaneously, 1 means executing queue processes them one by one
-            timeout : 60 // number of seconds before a queue process is aborted and considered failed
-            // TODO: handle server timeout
-          });
+        case 'S': // device started succesfully // TODO : get input from other device for this feature
+          queueWorker.startRecQueue(1,60).then( 
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
         case 'F': // when the device fails
           // TODO: error handling
           break;
@@ -65,14 +58,9 @@ module.exports = function( data ) { // retrieves data from the arduino and start
     case 'R': // text from a registratant is recieved
       if( data.split(';')[2] == 'HELP' ) { // check for the HELP keyword and send appropriate text
         const contactNo = data.substring(2,data.length).split(';')[0]; // retrieve contact number for sending HELP message
-        sendQueue.addJob({
-          body : { // send a job server queue, explained above
-            type : 'SEND',
-            flag : 'H',
-            number : contactNo,
-            message : ''
-          }
-        });
+        queueWorker.sendPredefinedMessage( 'SEND' , 'H' , contactNo , '' ).then( 
+          ( queryStatus ) => applog.log( queryStatus ),
+          ( errorMessage ) => errors.push( errorMessage ));
         // do not break here!
       } 
       switch( key[1] ) { // determines follow up action based on second character
@@ -83,15 +71,9 @@ module.exports = function( data ) { // retrieves data from the arduino and start
             // TODO: protect against regex by using <special module>
           } else {
             var parsedMsg = data.substring(2,data.length).split(';'); // retrieves registration body from text
-            applog.log("Message recieved in the queue process!!!");
-            recQueue.addJob( { // adds the REGISTRATION task to queue
-              body : {
-                type : 'REQUEST',
-                number : parsedMsg[0],
-                date : parsedMsg[1],
-                message : parsedMsg[2].trim()
-              }
-            });
+            queueWorker.sendToRecQueue( 'REQUEST' , parsedMsg[0] , parsedMsg[1] , parsedMsg[2].trim() ).then( // send recieved registration message to recieved message queue for processing...
+              ( queryStatus ) => applog.log( queryStatus ),
+              ( errorMessage ) => errors.push( errorMessage ));
           }
           break;
         case 'C':

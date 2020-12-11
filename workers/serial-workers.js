@@ -1,4 +1,4 @@
-const sendSerialConn = require('../connections/send-serial-connection'); // imported module for establishing serial connection with arduino, find actual code import in this file 
+var sendSerialConn = require('../connections/send-serial-connection'); // imported module for establishing serial connection with arduino, find actual code import in this file 
 var serialFlag = require('../utils/global-event-emitter'); // a global flag for cross-file event firing and listening
 
 var sendMessage = ( sendBody ) => { // promise that sends signal to device to send a message to client
