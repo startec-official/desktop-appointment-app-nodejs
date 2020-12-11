@@ -1,4 +1,5 @@
 var queueWorker = require('../workers/queue-workers'); // module containing functions for handling queue operations
+var serverWorker = require('../workers/server-workers');
 var applog = require('../utils/debug-log'); // custom log module that can be switched off when deploying
 /*
   Serial header flag combinations: // to save memory, actions from the server are triggered by certain character headers from the device
@@ -65,16 +66,13 @@ module.exports = function( data ) { // retrieves data from the arduino and start
       } 
       switch( key[1] ) { // determines follow up action based on second character
         case 'R' : // appointment registration recieved
-          if( data.split(';').length < 3 ) { // check if the serial output is in the proper format // TODO: move to separate file
-            errors.push( { type : 'ForbiddenCharError' , message : 'delimiter character frequency mismatch...' } );
-          } else if( 1 > 5 ) {
-            // TODO: protect against regex by using <special module>
-          } else {
-            var parsedMsg = data.substring(2,data.length).split(';'); // retrieves registration body from text
-            queueWorker.sendToRecQueue( 'REQUEST' , parsedMsg[0] , parsedMsg[1] , parsedMsg[2].trim() ).then( // send recieved registration message to recieved message queue for processing...
-              ( queryStatus ) => applog.log( queryStatus ),
-              ( errorMessage ) => errors.push( errorMessage ));
-          }
+        serverWorker.ignoreSpam( data ).then( (queryRes) => {
+          var parsedMsg = data.substring(2,data.length).split(';'); // retrieves registration body from text
+          queueWorker.sendToRecQueue( 'REQUEST' , parsedMsg[0] , parsedMsg[1] , parsedMsg[2].trim() ).then( // send recieved registration message to recieved message queue for processing...
+            ( queryStatus ) => applog.log( queryStatus ),
+            ( errorMessage ) => errors.push( errorMessage ));
+        },
+        (errorMessage) => errors.push( errorMessage ));
           break;
         case 'C':
           // TODO: handle cancel messages

@@ -3,7 +3,17 @@ var moment = require('moment'); // handly module for working with dates and time
 var queueWorker = require('../workers/queue-workers'); // module containing functions for handling queue operations
 var crypto = require('../utils/crypto'); // module for generating random string
 
-// TODO: place all query requests into one file
+
+var ignoreSpamPromise = ( data ) => { // UPGRADE : better spam protection // TODO: protect against regex by using <special module>
+    return new Promise((resolve,reject) => { 
+        if( data.split(';').length < 3 ) { // check if the serial output is in the proper format // TODO: move to verify input
+            reject( { type : 'ForbiddenCharError' , message : 'delimiter character frequency mismatch...' } );
+        }
+        else {
+            resolve( { status : 'OK' , message : 'message is in proper format. Not spam...' } );
+        }
+    });
+}
 
 var verifyInputPromise = ( registrationBody ) => { // checks if the input is correct
     return new Promise((resolve,reject) => {
@@ -150,6 +160,7 @@ var getSendToQueuePromise = (targetSched , regData , orderData ) => {
     });
 }
 
+module.exports.ignoreSpam = ignoreSpamPromise;
 module.exports.verifyInputPromise = verifyInputPromise;
 module.exports.getAvailableSchedulesPromise = getAvailableSchedulesPromise;
 module.exports.writeToSchedulePromise = writeToSchedulePromise;
