@@ -3,7 +3,7 @@ var recQueue = require('../queue/rec-queue-manager'); // module containing recie
 var recWorkFn = require('../queue/rec-work-function'); // work function for the recieve queue instance
 var sendWorkFn = require('../queue/send-work-function'); // work function for the send queue instance
 
-var getSendPredefinedMessagePromise = ( sendType , sendFlag , sendNumber , sendMessage ) => {
+var getSendPredefinedMessagePromise = ( sendType , sendFlag , sendNumber , sendMessage , occCount ) => {
     return new Promise((resolve , reject) => {
         try {
             sendQueue.addJob({
@@ -11,7 +11,8 @@ var getSendPredefinedMessagePromise = ( sendType , sendFlag , sendNumber , sendM
                     type : sendType ,
                     flag : sendFlag,
                     number : sendNumber,
-                    message : sendMessage
+                    message : sendMessage,
+                    times : occCount
                 }
             });
             resolve( { status : 'OK' , message : `send job with flag ${sendFlag} succesfully added to queue...` } );
@@ -25,7 +26,7 @@ var getSendPredefinedMessagePromise = ( sendType , sendFlag , sendNumber , sendM
 var sendToRecQueuePromise = ( sendType , sendNumber , sendDate , sendMessage ) => {
     return new Promise((resolve , reject) => {
         try {
-            sendQueue.addJob({
+            recQueue.addJob({
                 body : { // adds a send job to the main server queue, details provided in queue-process.js
                     type : sendType ,
                     number : sendNumber,

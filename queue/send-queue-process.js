@@ -43,7 +43,8 @@ module.exports = function( data ) { // retrieves data from the arduino and start
           applog.log( 'WAITING FOR RESPONSE Sender Device...' );
           initAttempts ++;
           if( initAttempts > 3 ) { // abort boot and send message to system if there is no response
-            // TODO: send message to system, abort boot
+            // TODO: add red light control using onoff library for raspberry pi
+            // TODO: close the queues and suspend operations
           }
           break;
         case 'S': // device started succesffuly

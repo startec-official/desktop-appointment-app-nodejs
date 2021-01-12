@@ -35,7 +35,7 @@ scheduleRouter.post('/overwriteSaveTo',(req,res) => { // saves input schedule to
        });
     });
     deleteSchedulePromise.then( (deleteSchedStatus) => {
-        if ( schedData.length > 0 ) { // TODO: separate delete query
+        if ( schedData.length > 0 ) {
             // query string construction for easier readability
             saveQuery = ` 
             INSERT INTO schedule (
@@ -86,7 +86,7 @@ scheduleRouter.delete('/clearAll' , ( req , res , next ) => { // delete all entr
 });
 
 scheduleRouter.get( '/select/out' , (req,res) => { // select the dates and times where there are available slots
-    connection.query( 'SELECT DISTINCT sched_date FROM schedule WHERE sched_slots > 0 AND sched_taken < sched_slots' , ( err,rows,fields ) => { // TODO: check up on this piece of code
+    connection.query( 'SELECT DISTINCT sched_date FROM schedule WHERE sched_slots > 0 AND sched_taken < sched_slots' , ( err,rows,fields ) => {
         if( err ) throw err;
         res.json( rows ); // send the data as a JSON object
     });
@@ -98,7 +98,7 @@ scheduleRouter.get( '/select/open' , (req,res) => { // selects the date, time, n
         res.json( rows );
     });
 });
-// TODO: fix issue with reschedule not leaving slots, probably check if process still running in client-side as well
+
 scheduleRouter.get('/getresched', (req,res) => { // get all data from the reschedule clients table
     const query = 'SELECT * FROM reschedule_clients';
     connection.query( query , ( err , rows , fields )=>{

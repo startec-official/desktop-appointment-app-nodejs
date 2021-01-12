@@ -3,6 +3,7 @@ var clientsRouter = express.Router(); // start the express service
 var connection = require('../connections/mysql-connection'); // module that allows connecting to a mysql database
 var moment = require('moment'); // handly module for working with dates and times
 var queueWorker = require('../workers/queue-workers');
+var applog = require('../utils/debug-log');
 var errors = []; // TODO: create standard for processing error messages
 /* 
     Client object schema (for client-side code):
@@ -26,7 +27,7 @@ var errors = []; // TODO: create standard for processing error messages
         client_code - client's auto-generated code
 */
 
-clientsRouter.use(function (req, res, next) {  // define the headers the router uses
+clientsRouter.use(function (req, res, next) {  // FIXME : use CORS middleware instead
     res.setHeader('Access-Control-Allow-Origin', '*'); // TODO: write more secure headers
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -58,7 +59,7 @@ clientsRouter.get('/display/contactpairs/:currentDate',(req,res)=>{ // get objec
         res.json(rows);
     });
 })
-// TODO: secure queries with hashed auth or headers
+// TODO: pass information as json instead, more secure
 clientsRouter.delete( '/remove/:userIds' , (req,res,next) => { // deletes users with the passed ids
     const input = req.params.userIds.split(','); // separate the ids passed in the parameters
     const idArray = input.map( (id) => parseInt(id,10) ); // place ids of clients to be removed in an array
@@ -145,7 +146,7 @@ clientsRouter.post( '/resched/transfer' , (req,res) => { // write to the resched
         res.sendStatus(200);
     });
 });
-// TODO: secure queries with hashed auth or headers
+// TODO: pass data as json objects instead, more secure
 clientsRouter.delete( '/resched/remove/:array' , (req,res,next) => { // remove a set of specified client from the reschedule clients array
     const input = req.params.array.split(',');
     const idArray = input.map( (id) => parseInt(id,10) );
@@ -157,7 +158,6 @@ clientsRouter.delete( '/resched/remove/:array' , (req,res,next) => { // remove a
     });
 });
 
-// TODO: fix issue with sending text messages, message gets truncated, possibly move all data to json body instead
 clientsRouter.post( '/sendmessage/custom/:contacts' , (req,res) => { // send custom message to specified contacts
     const customMessage = req.body.customMessage;
     const contactNos = req.params.contacts.split(',');

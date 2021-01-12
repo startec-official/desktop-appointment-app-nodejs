@@ -2,6 +2,7 @@ var conn = require('../connections/mysql-connection'); // module that allows con
 var moment = require('moment'); // handly module for working with dates and times
 var queueWorker = require('../workers/queue-workers'); // module containing functions for handling queue operations
 var crypto = require('../utils/crypto'); // module for generating random string
+var applog = require('../utils/debug-log');
 
 
 var ignoreSpamPromise = ( data ) => { // UPGRADE : better spam protection // TODO: protect against regex by using <special module>
@@ -57,12 +58,12 @@ var verifyInputPromise = ( registrationBody ) => { // checks if the input is cor
 
         if( errors.length > 0 ) { // signal errors when present in the array
             if( errors.filter((error) => error.type === 'ParseError').length > 0 ) {
-                queueWorker.sendPredefinedMessage( 'SEND' , 'P' , contactNo , '' ).then( // send a wrong format message, adds a send job to the main server queue, details provided in queue-process.js
+                queueWorker.sendPredefinedMessage( 'SEND' , 'P' , contactNo , '' , 0 ).then( // send a wrong format message, adds a send job to the main server queue, details provided in queue-process.js
                     ( queryStatus ) => applog.log( queryStatus ),
                     ( errorMessage ) => errors.push( errorMessage ));
             }
             if( errors.filter((error) => error.type === 'TimingError').length > 0 ) {
-                queueWorker.sendPredefinedMessage( 'SEND' , 'T' , contactNo , '' ).then( // send a timing error message, adds a send job to the main server queue, details provided in queue-process.js
+                queueWorker.sendPredefinedMessage( 'SEND' , 'T' , contactNo , '' , 0 ).then( // send a timing error message, adds a send job to the main server queue, details provided in queue-process.js
                     ( queryStatus ) => applog.log( queryStatus ),
                     ( errorMessage ) => errors.push( errorMessage ));
             }
@@ -95,7 +96,7 @@ var getAvailableSchedulesPromise = ( contactNo , targetDate ) => { // polls db t
         conn.query( query, targetDate , (err,rows,fields) => {
             if( err ) reject( { type : 'SQLError' , message : 'There was an error connecting with the database...' } );
             if( rows.length == 0 ) {
-                queueWorker.sendPredefinedMessage( 'SEND' , 'F' , contactNo , '' ).then( 
+                queueWorker.sendPredefinedMessage( 'SEND' , 'F' , contactNo , '' , 0 ).then( 
                     ( queryStatus ) => applog.log( queryStatus ),
                     ( errorMessage ) => errors.push( errorMessage ));
                 reject( { type : 'TimingError' , message : 'no available slots for selected date...' } );
@@ -149,7 +150,7 @@ var getSendToQueuePromise = (targetSched , regData , orderData ) => {
             });
             const timeString = `${timeComp[0]} to ${timeComp[1]}`;
             var constructedRegistrationBody = `${regData.dateFromMsg.format('MM/DD/YY')}|${timeString}|${regData.clientCode}|${orderData.order}/${orderData.slots}`; // send the client's appointment date, time, code and position in the queue
-            queueWorker.sendPredefinedMessage( 'SEND' , 'S' , regData.contactNo , constructedRegistrationBody ).then( 
+            queueWorker.sendPredefinedMessage( 'SEND' , 'S' , regData.contactNumber , constructedRegistrationBody , 0 ).then( 
                 ( queryStatus ) => applog.log( queryStatus ),
                 ( errorMessage ) => errors.push( errorMessage ));
             resolve( { status : 'OK' , message : 'registration job successfully added to queue...' } );
